@@ -1,0 +1,14 @@
+# This coafile can be used with coala. You can install coala via:
+#   git clone https://github.com/coala-analyzer/coala coala
+#   cd coala
+#   sudo python3 setup.py install
+# Then run this script with:
+#   coala
+
+[DEFAULT]
+output = none
+use_spaces = True
+
+[TRAVIS_WHITESPACE]
+files = **/*.md, **/*.cf, **/*.sh, **/*.cc
+bears = SpaceConsistencyBear
