@@ -16,6 +16,13 @@ install:
   - cd bnfc/source
   - sudo cabal install
   - cd ../..
+  - sudo apt-get install python3
+  - git clone https://github.com/coala-analyzer/coala --depth 1 coala
+  - cd coala
+  - sudo python3 setup.py install
+  - cd ..
+  - sudo rm -rf bnfc coala
 
 script:
   - sh run_tests.sh
+  - coala
