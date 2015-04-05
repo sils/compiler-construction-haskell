@@ -12,7 +12,15 @@ ghc:
   - 7.4
 
 install:
-  - git clone https://github.com/BNFC/bnfc --depth 1 bnfc && cd bnfc/source && sudo cabal install && cd ../..
+  - git clone https://github.com/BNFC/bnfc --depth 1 bnfc
+  - cd bnfc/source
+  - sudo cabal install
+  - cd ../..
+  - git clone https://github.com/coala-analyzer/coala coala
+  - cd coala
+  - sudo python3 setup.py install
+  - cd ../..
 
 script:
   - sh run_tests.sh
+  - coala
