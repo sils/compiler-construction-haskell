@@ -19,4 +19,4 @@ executable llvm-test
   main-is: Main.hs
   -- other-modules:
   --build-depends:       base ==4.6.*, parsec ==3.1.*, containers ==0.5.*, mtl ==2.2.*, llvm-general-pure ==3.4.*, llvm-general ==3.4.*
-  build-depends:       base >=4.6, parsec >=3.1, containers >=0.5, mtl >=2.1, llvm-general-pure >=3.4, llvm-general >=3.4
+  build-depends:       base >=4.6, parsec >=3.1, containers >=0.5, mtl >=2.1, llvm-general-pure >=3.4, llvm-general >=3.4, transformers >= 0.3
