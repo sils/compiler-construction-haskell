@@ -4,3 +4,4 @@
 *.o
 build
 *.orig
+dist
