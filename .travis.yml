@@ -22,6 +22,7 @@ install:
   - sudo python3 setup.py install
   - cd ..
   - sudo rm -rf bnfc coala
+  - cabal install mtl-2.1.2
 
 script:
   - sh run_tests.sh
