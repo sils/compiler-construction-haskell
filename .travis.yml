@@ -15,6 +15,7 @@ install:
   - git clone https://github.com/BNFC/bnfc --depth 1 bnfc
   - cd bnfc/source
   - sudo cabal install
+  - apt-get install build-essential haskell-platform llvm
   - cabal update
   - sudo apt-get install libghc-mtl-dev
   - sudo apt-get install libghc-mtl-doc
