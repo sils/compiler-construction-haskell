@@ -23,6 +23,5 @@ if [ $mtlPkg \< "mtl-2.2" ]
     cd llvm-hs_mtl2.2
 fi
 make clean
-make all
 make test
 
