@@ -12,7 +12,7 @@ cat ../foo.cc|./TestCPP
 
 # Task 1.2
 cd ../
-mtlPkg=`ghc-pkg latest mtl`
+mtlPkg=`sudo ghc-pkg latest mtl`
 echo "Found mtl package $mtlPkg"
 if [ $mtlPkg \< "mtl-2.2" ]
   then
