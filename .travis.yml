@@ -16,7 +16,6 @@ install:
   - cd bnfc/source
   - sudo cabal install
   - cabal update
-  - cabal install cabal-install
   - sudo apt-get install libghc-mtl-dev
   - sudo apt-get install libghc-mtl-doc
   - sudo apt-get install libghc-mtl-prof
