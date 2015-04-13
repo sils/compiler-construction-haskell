@@ -17,9 +17,10 @@ install:
   - sudo cabal install
   - sudo apt-get install build-essential haskell-platform llvm
   - sudo cabal update
-  - sudo cabal install cabal-install
-  - sudo cabal install mtl
+  - sudo cabal install cabal-install --global
+  - sudo cabal install mtl --global
   - ghc-pkg list
+  - sudo ghc-pkg list
   - cd ../..
   - sudo apt-get install python3
   - git clone https://github.com/coala-analyzer/coala --depth 1 coala
