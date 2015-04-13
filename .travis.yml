@@ -16,6 +16,11 @@ install:
   - cd bnfc/source
   - sudo cabal install
   - cabal update
+  - cabal install cabal-install
+  - sudo apt-get install libghc-mtl-dev
+  - sudo apt-get install libghc-mtl-doc
+  - sudo apt-get install libghc-mtl-prof
+  - ghc-pkg list mtl
   - cd ../..
   - sudo apt-get install python3
   - git clone https://github.com/coala-analyzer/coala --depth 1 coala
@@ -23,7 +28,6 @@ install:
   - sudo python3 setup.py install
   - cd ..
   - sudo rm -rf bnfc coala
-  - sudo apt-get install libghc-mtl-dev
 
 script:
   - sh run_tests.sh
