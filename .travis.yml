@@ -19,6 +19,8 @@ install:
   - sudo cabal update
   - sudo cabal install cabal-install
   - sudo cabal install mtl
+  - sudo cabal install llvm-general
+  - sudo ghc-pkg list
   - cd ../..
   - sudo apt-get install python3
   - git clone https://github.com/coala-analyzer/coala --depth 1 coala
@@ -28,5 +30,5 @@ install:
   - sudo rm -rf bnfc coala
 
 script:
-  - sh run_tests.sh
+  - sudo sh run_tests.sh
   - coala
