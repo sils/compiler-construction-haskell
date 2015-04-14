@@ -12,15 +12,11 @@ ghc:
   - 7.4
 
 install:
-  - git clone https://github.com/BNFC/bnfc --depth 1 bnfc
-  - cd bnfc/source
-  - sudo cabal install
-  - sudo apt-get install build-essential haskell-platform llvm
-  - sudo cabal update
-  - sudo cabal install cabal-install
-  - sudo cabal install mtl
-  - sudo cabal install llvm-general
-  - sudo ghc-pkg list
+  - sudo apt-get install build-essential haskell-platform
+  - cabal update
+  - cabal install cabal-install
+  - cabal install BNFC llvm-general
+  - ghc-pkg list
   - cd ../..
   - sudo apt-get install python3
   - git clone https://github.com/coala-analyzer/coala --depth 1 coala
@@ -30,5 +26,5 @@ install:
   - sudo rm -rf bnfc coala
 
 script:
-  - sudo sh run_tests.sh
+  - sh run_tests.sh
   - coala
