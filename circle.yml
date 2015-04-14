@@ -4,9 +4,10 @@ machine:
 
 dependencies:
   pre:
+    - sudo apt-get install llvm-3.4
     - cabal update
   post:
-    - cabal install BNFC
+    - cabal install BNFC llvm-general parsec llvm-general-pure
 
 test:
   override:
