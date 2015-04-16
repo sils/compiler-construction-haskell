@@ -8,4 +8,4 @@ https://e-learning.tu-harburg.de/studip/details.php?sem_id=df81c1c72298515a65ce9
 Build Status
 ------------
 
-[![Build Status](https://travis-ci.org/sils1297/compiler-construction-haskell.svg?branch=master)](https://travis-ci.org/sils1297/compiler-construction-haskell)
+[![Circle CI](https://circleci.com/gh/sils1297/compiler-construction-haskell/tree/master.svg?style=svg)](https://circleci.com/gh/sils1297/compiler-construction-haskell/tree/master)
