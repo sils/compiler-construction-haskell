@@ -1,7 +1,16 @@
 PDefs.   Program ::= [Def] ;
 terminator Def "" ;
 
-Something.Def ::= "stupid" ;
+DFunI. Def ::= "inline" Type Id "(" [Arg] ")" "{" [Stm] "}" ;
+DFun. Def ::= Type Id "(" [Arg] ")" "{" [Stm] "}" ;
+
+separator Arg "," ;
+
+DcArgs. Arg ::= Type ;
+DcArgsIdentifier. Arg ::= Type Id ;
+DcArgsDefault. Arg ::= Type Id "=" constExp ;
+
+terminator Stm "" ;
 
 comment "#" ;
 comment "//" ;
