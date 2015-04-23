@@ -3,14 +3,97 @@ terminator Def "" ;
 
 DFunI. Def ::= "inline" Type Id "(" [Arg] ")" "{" [Stm] "}" ;
 DFun. Def ::= Type Id "(" [Arg] ")" "{" [Stm] "}" ;
+DTypeDef. Def ::= "typedef" Type Id ";" ;
+DDecl. Def ::= Decl ";" ;
+DStruct. Def ::= "struct" Id "{" [Decl] "}" ";" ;
+DUsing. Def ::= "using" QConsts ";" ;
 
 separator Arg "," ;
 
 DcArgs. Arg ::= Type ;
 DcArgsIdentifier. Arg ::= Type Id ;
-DcArgsDefault. Arg ::= Type Id "=" constExp ;
+DcArgsDefault. Arg ::= Type Id "=" Expr ;
 
 terminator Stm "" ;
+
+-- Statement definitions
+SEmpty. Stm ::= ";" ;
+SExpr. Stm ::= Expr ";" ;
+SDecl. Stm ::= Decl ";" ;
+SRet. Stm ::= "return" Expr ";" ;
+SRetVoid. Stm ::= "return" ";" ;
+SWhile. Stm ::= "while" "(" Expr ")" Stm ;
+SDoWhile. Stm ::= "do" Stm "while" "(" Expr ")" ";" ;
+SFor. Stm ::= "for" "(" Decl ";" Expr ";" Expr  ")" Stm ;
+SIf. Stm ::= "if" "(" Expr ")" Stm ;
+SIfElse. Stm ::= "if" "(" Expr ")" Stm "else" Stm ;
+SBlock. Stm ::= "{" [Stm] "}"
+STypedef. Stm ::= "typedef" Type Id ";" ;
+SStruct. Stm ::= "struct" Id "{" [Decl] "}" ";" ;
+
+DIdentifier. Decl ::= Type [Id] ;
+DDefault. Decl ::= Type Id "=" Expr ;
+
+separator nonempty Id "," ;
+
+-- Expression definitions
+ELit. Expr16 ::= String ;
+EInt. Expr16 ::= Integer ;
+EDouble. Expr16 ::= Double ;
+ETrue. Expr16 ::= "true" ;
+EFalse. Expr16 ::= "false" ;
+EId. Expr16 ::= Id ;
+EIndex. Expr15 ::= Expr "[" Expr "]" ;
+EQualified. Expr15 ::= [QConsts] ;
+EFunCall. Expr15 ::= Expr "(" [Expr] ")" ;
+EMember. Expr14 ::= Expr "." Expr ;
+EPMember. Expr14 ::= Expr "->" Expr ;
+EPostIncr. Expr14 ::= Expr "++" ;
+EPostDecr. Expr14 ::= Expr "--" ;
+EDeRef. Expr14 ::= "*" Expr ;
+EPreIncr. Expr13 ::= "++" Expr ;
+EPreDecr. Expr13 ::= "--" Expr ;
+ENeg. Expr13 ::= "!" Expr ;
+EMul. Expr12 ::= Expr "*" Expr ;
+EDiv. Expr12 ::= Expr "/" Expr ;
+ERem. Expr12 ::= Expr "%" Expr ;
+EAdd. Expr11 ::= Expr "+" Expr ;
+ESub. Expr11 ::= Expr "-" Expr ;
+EShiftL. Expr10 ::= Expr "<<" Expr ;
+EShiftR. Expr10 ::= Expr ">>" Expr ;
+ELT. Expr9 ::= Expr "<" Expr ;
+EGT. Expr9 ::= Expr ">" Expr ;
+EGET. Expr9 ::= Expr ">=" Expr ;
+ELET. Expr9 ::= Expr "<=" Expr ;
+EEq. Expr8 ::= Expr "==" Expr ;
+ENEq. Expr8 ::= Expr "!=" Expr ;
+EConj. Expr4 ::= Expr "&&" Expr ;
+EDisj. Expr3 ::= Expr "||" Expr ;
+EAssign. Expr2 ::= Expr "=" Expr ;
+EPlusEq. Expr2 ::= Expr "+=" Expr ;
+ESubEq. Expr2 ::= Expr "-=" Expr ;
+ECond. Expr2 ::= Expr "?" Expr ":" Expr ;
+EThrow. Expr1 ::= "throw" Expr ;
+coercions Expr 16 ;
+
+seperator Expr "," ;
+
+seperator QConsts "::" ;
+
+QCId. QConsts ::= Id ;
+QCId. QConsts ::= TemplInsts ;
+
+TI. TemplInsts ::= Id "<" [Type] "> ;
+
+seperator Type "," ;
+
+TBool. Type ::= "bool" ;
+TDouble. Type ::= "double" ;
+TInt. Type ::= "int" ;
+TVoid. Type ::= "void" ;
+TQC. Type ::= QConsts ;
+
+token Id  (letter (letter | digit | '_')*)
 
 comment "#" ;
 comment "//" ;
