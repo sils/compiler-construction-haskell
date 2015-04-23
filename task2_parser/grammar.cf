@@ -1,0 +1,9 @@
+PDefs.   Program ::= [Def] ;
+terminator Def "" ;
+
+Something.Def ::= "stupid" ;
+
+comment "#" ;
+comment "//" ;
+comment "/*" "*/" ;
+
