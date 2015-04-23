@@ -9,6 +9,7 @@ DStruct. Def ::= "struct" Id "{" [Decl] "}" ";" ;
 DUsing. Def ::= "using" QConsts ";" ;
 
 separator Arg "," ;
+terminator Decl ";" ;
 
 DcArgs. Arg ::= Type ;
 DcArgsIdentifier. Arg ::= Type Id ;
@@ -81,9 +82,9 @@ separator Expr "," ;
 separator QConsts "::" ;
 
 QCId. QConsts ::= Id ;
-QCId. QConsts ::= TemplInsts ;
+QCTI. QConsts ::= TemplInsts ;
 
-TI. TemplInsts ::= Id "<" [Type] ">" ;
+TemplInst. TemplInsts ::= Id "<" [Type] ">" ;
 
 separator Type "," ;
 
