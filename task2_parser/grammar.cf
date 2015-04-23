@@ -27,7 +27,7 @@ SDoWhile. Stm ::= "do" Stm "while" "(" Expr ")" ";" ;
 SFor. Stm ::= "for" "(" Decl ";" Expr ";" Expr  ")" Stm ;
 SIf. Stm ::= "if" "(" Expr ")" Stm ;
 SIfElse. Stm ::= "if" "(" Expr ")" Stm "else" Stm ;
-SBlock. Stm ::= "{" [Stm] "}"
+SBlock. Stm ::= "{" [Stm] "}" ;
 STypedef. Stm ::= "typedef" Type Id ";" ;
 SStruct. Stm ::= "struct" Id "{" [Decl] "}" ";" ;
 
@@ -76,16 +76,16 @@ ECond. Expr2 ::= Expr "?" Expr ":" Expr ;
 EThrow. Expr1 ::= "throw" Expr ;
 coercions Expr 16 ;
 
-seperator Expr "," ;
+separator Expr "," ;
 
-seperator QConsts "::" ;
+separator QConsts "::" ;
 
 QCId. QConsts ::= Id ;
 QCId. QConsts ::= TemplInsts ;
 
-TI. TemplInsts ::= Id "<" [Type] "> ;
+TI. TemplInsts ::= Id "<" [Type] ">" ;
 
-seperator Type "," ;
+separator Type "," ;
 
 TBool. Type ::= "bool" ;
 TDouble. Type ::= "double" ;
@@ -93,7 +93,7 @@ TInt. Type ::= "int" ;
 TVoid. Type ::= "void" ;
 TQC. Type ::= QConsts ;
 
-token Id  (letter (letter | digit | '_')*)
+token Id  (letter (letter | digit | '_')*) ;
 
 comment "#" ;
 comment "//" ;
