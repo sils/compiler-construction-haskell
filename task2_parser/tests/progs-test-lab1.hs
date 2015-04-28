@@ -131,6 +131,9 @@ mainOpts cfFile =
        putStrLn "------------------------------------------------------------"
        report "Good programs: " good
        report "Bad programs:  " bad
+       let (passedG, countG) = (length (filter id good), length good)
+       let (passedB, countB) = (length (filter id bad), length bad)
+       if (passedG == countG && passedB == countB) then exitSuccess else exitFailure
 
 main :: IO ()
 main = getArgs >>= parseArgs >>= mainOpts
