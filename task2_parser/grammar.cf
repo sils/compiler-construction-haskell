@@ -1,0 +1,154 @@
+-- A Programm is a sequence of definitions
+PDefs. Program ::= [Def] ;
+terminator Def "" ;
+
+-- A Program may also contain comments and preprocessor directives
+comment "#" ;
+comment "//" ;
+comment "/*" "*/" ;
+
+-- Many statements can be used as top-level definitions:
+-- variable declarations
+DDecl.      Def ::= Decl ";" ;
+-- typedef declarations
+DTypeDef.   Def ::= "typedef" Type Id ";" ;
+-- struct declarations
+DStruct.    Def ::= "struct" Id "{" [Decl] "}" ";" ;
+-- Finally, definitions for using qualified constants are allowed
+DUsing.     Def ::= "using" QConst ";" ;
+-- A function definition has a type, a name, an argument list, and a body.
+DFun.       Def ::= Type Id "(" [Arg] ")" FunBody ;
+-- A function can optionally be prefixed by 'inline'
+DFunInline. Def ::= "inline" Type Id "(" [Arg] ")" FunBody ;
+
+terminator Decl ";" ;
+terminator Stm "" ;
+
+-- An argument list is a comma-separated list of argument declarations.
+separator Arg "," ;
+-- An argument declaration always has a type.
+ADecl.           Arg ::= Type ;
+ADeclRef.        Arg ::= Type "&" ;
+-- This type is optionally followed by an identifier
+ADeclIdent.      Arg ::= Type Id ;
+ADeclIdentRef.   Arg ::= Type "&" Id ;
+-- or an identifier and an initialization
+ADeclInit.       Arg ::= Type Id "=" Expr ;
+ADeclInitRef.    Arg ::= Type "&" Id "=" Expr ;
+-- and optionally preceeded by the specifier const
+ADeclConstT.     Arg ::= "const" Type ;
+ADeclConstTRef.  Arg ::= "const" Type "&" ;
+ADeclConstId.    Arg ::= "const" Type Id ;
+ADeclConstIdRef. Arg ::= "const" Type "&" Id ;
+ADeclConstI.     Arg ::= "const" Type Id "=" Expr ;
+ADeclConstIRef.  Arg ::= "const" Type "&" Id "=" Expr ;
+
+-- A function body is either a list of statements enclosed in curly brackets '{' and '}'
+FunBodyStms.  FunBody ::= "{" [Stm] "}" ;
+-- or an empty body consisting of a semicolon ';'
+FunBodyEmpty. FunBody ::= ";" ;
+
+-- Declarations have the same form as argument declarations in functions, except that they can
+-- have more than one variable
+Decls.         Decl ::= Type [Id] ;
+DeclsRef.      Decl ::= Type "&" [Id] ;
+DeclsConst.    Decl ::= "const" Type [Id] ;
+DeclsConstRef. Decl ::= "const" Type "&" [Id] ;
+separator nonempty Id "," ;
+DInit.         Decl ::= Type Id "=" Expr ;
+DInitRef.      Decl ::= Type "&" Id "=" Expr ;
+DConstInit.    Decl ::= "const" Type Id "=" Expr ;
+DConstInitRef. Decl ::= "const" Type "&" Id "=" Expr ;
+
+-- Empty Statement
+SEmpty.   Stm ::= ";" ;
+-- Any expression followed by a semicolon ';' can be used as a statement
+SExpr.    Stm ::= Expr ";" ;
+-- Any declaration followed by a semicolon ';' can be used as a statement
+SDecl.    Stm ::= Decl ";" ;
+-- Statements returning an Expression
+SReturn.  Stm ::= "return" Expr ";" ;
+-- While loops, with an expression in parentheses followed by a statement
+SWhile.   Stm ::= "while" "(" Expr ")" Stm ;
+-- Do-while loops, with an expression in parentheses followed by a statement
+SDo.      Stm ::= "do" Stm "while" "(" Expr ")" ;
+-- For loop, with a declaration and two expression in parentheses followed by a statement
+SFor.     Stm ::= "for" "(" Decl ";" Expr ";" Expr ")" Stm ;
+-- Conditionals: 'if' with an expression in parentheses followed by a statement
+SIf.      Stm ::= "if" "(" Expr ")" Stm ;
+-- and optionally by 'else' and a statement
+SIfElse.  Stm ::= "if" "(" Expr ")" Stm "else" Stm ;
+-- Blocks: any list of statement (including empty list) between curly brackets.
+SBlock.   Stm ::= "{" [Stm] "}" ;
+-- Type definitions: a type and a name for it
+STypeDef. Stm ::= "typedef" Type Id ";" ;
+-- Structure definitions: a name and a list of declarations
+SStruct.  Stm ::= "struct" Id "{" [Decl] "}" ";" ;
+
+
+-- Infix operator are assumed to be left-associative (except assignements which are
+-- right-associative. The arguments in a function call can be expressions of any level.
+-- Otherwise, the subexpressions are assumed to be one precedence level
+-- above of the main expression
+ELitS.    Expr16 ::= [String] ;
+terminator nonempty String "" ;
+-- char is required by test 06
+ELitC.    Expr16 ::= Char ;
+ELitI.    Expr16 ::= Integer ;
+ELitF.    Expr16 ::= Double ;
+EIndex.   Expr15 ::= Id "[" Expr "]" ;
+EQual.    Expr15 ::= QConst ;
+ECall.    Expr15 ::= Id "(" [Expr] ")" ;
+EMember.  Expr14 ::= Expr15 "." Expr15 ;
+EPMember. Expr14 ::= Expr15 "->" Expr15 ;
+EIncr.    Expr14 ::= Expr15 "++" ;
+EDecr.    Expr14 ::= Expr15 "--" ;
+EDeRef.   Expr14 ::= "*" Expr15 ;
+EPIncr.   Expr13 ::= "++" Expr14 ;
+EPDecr.   Expr13 ::= "--" Expr14 ;
+ENeg.     Expr13 ::= "!" Expr14 ;
+EMul.     Expr12 ::= Expr12 "*" Expr13 ;
+EDiv.     Expr12 ::= Expr12 "/" Expr13 ;
+ERem.     Expr12 ::= Expr12 "%" Expr13 ;
+EAdd.     Expr11 ::= Expr11 "+" Expr12 ;
+ESub.     Expr11 ::= Expr11 "-" Expr12 ;
+EShiftL.  Expr10 ::= Expr10 "<<" Expr11 ;
+EShiftR.  Expr10 ::= Expr10 ">>" Expr11 ;
+-- TODO: shift/ reduce conflict with Template instantiation; in for loop i < 4 not possible
+ELT.      Expr9 ::= Expr9 "<" Expr10 ;
+ELEQ.     Expr9 ::= Expr9 "<=" Expr10 ;
+EGT.      Expr9 ::= Expr9 ">" Expr10 ;
+EGEQ.     Expr9 ::= Expr9 ">=" Expr10 ;
+EEq.      Expr8 ::= Expr8 "==" Expr9 ;
+ENEQ.     Expr8 ::= Expr8 "!=" Expr9 ;
+EConj.    Expr4 ::= Expr4 "&&" Expr5 ;
+EDisj.    Expr3 ::= Expr3 "||" Expr4 ;
+EAss.     Expr2 ::= Expr3 "=" Expr2 ;
+EAddAss.  Expr2 ::= Expr3 "+=" Expr2 ;
+ESubAss.  Expr2 ::= Expr3 "-=" Expr2 ;
+ECond.    Expr2 ::= Expr3 "?" Expr3 ":" Expr3 ;
+EThrow.   Expr1 ::= "throw" Expr2 ;
+
+coercions Expr 16 ;
+separator Expr "," ;
+
+-- Qualified constants are constant names separated by '::'
+QConsts. QConst ::= [Name] ;
+separator nonempty Name "::" ;
+-- Names can be identifiers
+QId.       Name ::= Id ;
+-- but also template instantiations
+TemplInst. Name ::= Id "<" [Type] ">" ;
+separator nonempty Type "," ;
+
+-- Types are either qualified constants
+TQConst. Type ::= QConst ;
+-- or built-in types
+TBool.   Type ::= "bool" ;
+TDouble. Type ::= "double" ;
+TInt.    Type ::= "int" ;
+TVoid.   Type ::= "void" ;
+
+position token Id (letter (letter | digit | '_')*) ;
+
+
