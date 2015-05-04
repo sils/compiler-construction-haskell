@@ -38,7 +38,7 @@ welcome = do putStrLn $ "This is the test program for Programming Languages Lab 
              putStrLn $ color red  $ "NOTE: The start category in your grammar must be called 'Program'"
 
 runBNFC :: IO Int
-runBNFC = do (out,err) <-runCommandNoFail "bnfc" "CPP.cf"
+runBNFC = do (out,err) <-runCommandNoFail "~/.cabal/bin/bnfc" "CPP.cf"
              let r = case grep "rules accepted" out of
                        []   -> 0
                        l:_  -> read $ takeWhile isDigit l
@@ -131,6 +131,9 @@ mainOpts cfFile =
        putStrLn "------------------------------------------------------------"
        report "Good programs: " good
        report "Bad programs:  " bad
+       let (passedG, countG) = (length (filter id good), length good)
+       let (passedB, countB) = (length (filter id bad), length bad)
+       if (passedG == countG && passedB == countB) then exitSuccess else exitFailure
 
 main :: IO ()
 main = getArgs >>= parseArgs >>= mainOpts
