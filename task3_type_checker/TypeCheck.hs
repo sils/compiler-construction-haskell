@@ -14,16 +14,16 @@ emptyEnv = [[]]
 addVar :: Env -> Ident -> Type -> Err Env
 addVar (scope:rest) identifier typ =
   case lookup identifier scope of
-    Nothing -> return (((identifier, typ):scope):rest)
-    Just _ -> fail ("Variable " ++ printTree identifier ++ " was already declared.")
+    Nothing -> Ok (((identifier, typ):scope):rest)
+    Just _ -> Bad ("Variable " ++ printTree identifier ++ " was already declared.")
 
 -- Looks up a variable in the given environment.
 lookupVar :: Env -> Ident -> Err TypeChecker
-lookupVar [] identifier = fail ("Unknown variable " ++ printTree identifier ++ ".")
+lookupVar [] identifier = Bad ("Unknown variable " ++ printTree identifier ++ ".")
 lookupVar (scope:rest) identifier =
   case lookup identifier scope of
     Nothing -> lookupVar rest identifier
-    Just typ -> return typ
+    Just typ -> Ok typ
 
 -- Adds a new empty scope to the environment.
 addScope :: Env -> Env
@@ -34,7 +34,7 @@ typecheck :: Program -> Err ()
 typecheck (PDefs defs) = checkDefs emptyEnv defs
 
 checkDefs :: Env -> [ def ] -> Err ( )
-checkDefs env [] = return ()
+checkDefs env [] = Ok ()
 checkDefs env (def:defs) =
   do
     -- Why monad needed?
