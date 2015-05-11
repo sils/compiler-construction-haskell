@@ -1,7 +1,7 @@
 all:
 	happy -gca ParCPP.y
 	alex -g LexCPP.x
-	ghc --make TestCPP.hs -o TestCPP
+	ghc --make TestCPP.hs TypeCheck.hs -o TestCPP -fwarn-incomplete-patterns
 
 clean:
 	-rm -f *.log *.aux *.hi *.o *.dvi
