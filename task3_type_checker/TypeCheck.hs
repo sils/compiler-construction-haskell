@@ -30,8 +30,33 @@ addScope :: Env -> Env
 addScope env = []:env
 
 
-typecheck :: Program -> Err ( )
-checkStms :: Env -> [ Stm ] -> Err ( )
-checkStm  :: Env -> Stm -> Err Env
-checkExp  :: Env -> Exp -> Type -> Err ( )
-inferExp  :: Env -> Exp -> Err Type
+typecheck :: Program -> Err ()
+typecheck (PDefs defs) = checkDefs emptyEnv defs
+
+checkDefs :: Env -> [ def ] -> Err ( )
+checkDefs env [] = return ()
+checkDefs env (def:defs) =
+  do
+    -- Why monad needed?
+    env_ <- checkDef env def
+    checkDefs env_ defs
+
+
+checkDef :: Env -> Def -> Err Env
+-- TODO: add function and params to env, call down
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
