@@ -3,8 +3,9 @@ module TypeChecker where
 import AbsCPP
 import PrintCPP
 import ErrM
+import Control.Monad
 
-type Fun = (Id, Type, [Type])
+type Fun = (Id, (Type, [Type]))
 type Var = (Id, Type)
 
 -- The environment is a list of *scopes*. Each scope holds a list of
@@ -22,9 +23,18 @@ addVar (scope:rest) identifier typ =
 
 -- Adds a function definition to uppermost scope of the given environment
 addFun :: Env -> Id -> Type -> [ Arg ] -> Err Env
-addFun (scope:rest) identifier typ args =
+addFun env@(scope:rest) identifier typ args =
   case lookup identifier (fst scope) of
-    Nothing -> 
+    Nothing ->
+      do
+        -- enter function scope
+        env_ <- Ok (addScope env)
+        -- add all argument variables to scope
+        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
+        -- create function signature
+        let sig = (typ, map (\(ADecl typ identifier) -> typ) args)
+        -- add function signature to outer scope
+        Ok ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
     Just _ -> Bad ("Function " ++ printTree identifier ++ " was already declared.")
 
 -- Looks up a variable in the given environment.
@@ -34,6 +44,14 @@ lookupVar (scope:rest) identifier =
   case lookup identifier (snd scope) of
     Nothing -> lookupVar rest identifier
     Just typ -> Ok typ
+
+-- Looks up a function in the given environment
+lookupFun :: Env -> Id -> Err (Type, [Type])
+loopupFun [] identifier = Bad ("Unknown variable" ++ printTree identifier ++ ".")
+lookupFun (scope:rest) identifier =
+  case lookup identifier (fst scope) of
+    Nothing -> lookupFun rest identifier
+    Just sig -> Ok sig
 
 -- Adds a new empty scope to the environment.
 addScope :: Env -> Env
@@ -60,5 +78,6 @@ checkDef env def =
                                          Ok env_
 
 checkStmts :: Env -> [ Stm ] -> Err Env
--- TODO check all statements
+checkStmts = fail ("Not implemented")
+
 
