@@ -89,29 +89,37 @@ checkDef env def =
         Ok env_
 
 checkStmts :: Env -> [ Stm ] -> Err Env
-checkStmts env [] = Ok ()
+checkStmts env [] = Ok env
 checkStmts env (stmt:stmts) =
   do
     env_ <- checkStmt env stmt
     checkStmts env_ stmts
 
-checkStmt :: Env -> Stmt -> Err Env
+checkStmt :: Env -> Stm -> Err Env
 checkStmt env stmt =
   case stmt of
     SExp exp                 ->
-      checkExp env exp
+      do
+        checkExp env exp
+        Ok env
     SDecls typ identifiers   ->
       addVars env identifiers typ
     SInit typ identifier exp ->
-
+      do
+        if (Ok typ == checkExp env exp) then
+          addVar env identifier typ
+        else
+          Bad ("Expression is of wrong type")
     SReturn exp              ->
-      checkExp env exp
+      do
+        checkExp env exp
+        Ok env
     SReturnVoid              ->
       Ok env
     SWhile exp stmt          ->
       do
         -- Expressions cannot change environment
-        checkExp exp
+        checkExp env exp
         checkStmt env stmt
         Ok env
     SBlock stmts             ->
@@ -123,9 +131,49 @@ checkStmt env stmt =
         checkStmt env stmt2
         Ok env
 
-checkExp :: Env -> Exp -> Err Env
-checkExp env exp = fail ("Not implemented")
+checkExp :: Env -> Exp -> Err Type
+checkExp env exp =
+  case exp of
+    ETrue                    -> Ok Type_bool
+    EFalse                   -> Ok Type_bool
+    EInt _                   -> Ok Type_int
+    EDouble _                -> Ok Type_double
+    EId _                    -> Ok Type_void
+    EApp id exprs            -> Ok Type_void -- TODO - check function declaration, return return type of function
+    EPIncr exp               -> checkExp env exp
+    EPDecr exp               -> checkExp env exp
+    ETimes lhs rhs           -> checkExpTypeEquality env lhs rhs
+    EDiv lhs rhs             -> checkExpTypeEquality env lhs rhs
+    EPlus lhs rhs            -> checkExpTypeEquality env lhs rhs
+    EMinus lhs rhs           -> checkExpTypeEquality env lhs rhs
+    ELt lhs rhs              -> checkExpTypeEquality env lhs rhs
+    EGt lhs rhs              -> checkExpTypeEquality env lhs rhs
+    ELtEq lhs rhs            -> checkExpTypeEquality env lhs rhs
+    EGtEq lhs rhs            -> checkExpTypeEquality env lhs rhs
+    EEq lhs rhs              -> checkExpTypeEquality env lhs rhs
+    ENEq lhs rhs             -> checkExpTypeEquality env lhs rhs
+    EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
+    EOr lhs rhs              -> Ok Type_void -- TODO - check types of expressions are bool
+    EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
 
+-- checks if types of both given expressions are equal, returns type of expressions or error
+checkExpTypeEquality :: Env -> Exp -> Exp -> Err Type
+checkExpTypeEquality env lhs rhs =
+  do
+    typ1 <- checkExp env lhs
+    typ2 <- checkExp env rhs
+    if (typ1 == typ2) then
+      Ok typ1
+    else
+      Bad ("Types don't match")
+
+-- checks if types of both given expressions are boolean, returns Type_bool or error
+checkExpTypesAreBool :: Env -> Exp -> Exp -> Err Type
+checkExpTypesAreBool env lhs rhs =
+      if (checkExp env lhs == Ok Type_bool && checkExp env rhs == Ok Type_bool) then
+        Ok Type_bool
+      else
+        Bad ("Types must be boolean in Conjuctions and Disjunctions")
 
 
 
