@@ -105,7 +105,7 @@ checkDecl env def =
   case def of
     DFun typ identifier args stmts -> addFun env identifier typ args
 
-checkDefs :: Env -> [ Def ] -> Err ( )
+checkDefs :: Env -> [ Def ] -> Err ()
 checkDefs env [] = Ok ()
 checkDefs env (def:defs) =
   do
@@ -230,7 +230,7 @@ checkExp env exp =
         checkExpTypeEquality env lhs rhs
         Ok Type_bool
     EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
-    EOr lhs rhs              -> Ok Type_void -- TODO - check types of expressions are bool
+    EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
     ETyped _ typ            -> Ok typ
 
