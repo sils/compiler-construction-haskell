@@ -78,6 +78,12 @@ checkDef env def =
                                          Ok env_
 
 checkStmts :: Env -> [ Stm ] -> Err Env
-checkStmts = fail ("Not implemented")
+checkStmts env [] = Ok ()
+checkStmts env (stmt:stmts) =
+  do
+    env_ <- checkStmt env stmt
+    checkStmts env_ stmts
 
+checkStmt :: Env -> Stmt -> Err Env
+checkStmt env def = fail ("Not implemented")
 
