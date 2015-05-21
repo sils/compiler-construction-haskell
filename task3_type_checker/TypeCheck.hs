@@ -69,7 +69,7 @@ addScope env = ([],[]):env
 typecheck :: Program -> Err ()
 typecheck (PDefs defs) = checkDefs emptyEnv defs
 
-checkDefs :: Env -> [ Def ] -> Err ( )
+checkDefs :: Env -> [ Def ] -> Err ()
 checkDefs env [] = Ok ()
 checkDefs env (def:defs) =
   do
@@ -153,7 +153,7 @@ checkExp env exp =
     EEq lhs rhs              -> checkExpTypeEquality env lhs rhs
     ENEq lhs rhs             -> checkExpTypeEquality env lhs rhs
     EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
-    EOr lhs rhs              -> Ok Type_void -- TODO - check types of expressions are bool
+    EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
 
 -- checks if types of both given expressions are equal, returns type of expressions or error
