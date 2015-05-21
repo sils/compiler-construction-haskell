@@ -21,6 +21,14 @@ addVar (scope:rest) identifier typ =
     Nothing -> Ok ((fst scope, (identifier, typ):(snd scope)):rest)
     Just _ -> Bad ("Variable " ++ printTree identifier ++ " was already declared.")
 
+-- Adds several variables with addVar
+addVars :: Env -> [Id] -> Type -> Err Env
+addVars env [] typ = Ok env
+addVars env (top:rest) typ =
+  do
+    env_ <- addVar env top typ
+    addVars env_ rest typ
+
 -- Adds a function definition to uppermost scope of the given environment
 addFun :: Env -> Id -> Type -> [ Arg ] -> Err Env
 addFun env@(scope:rest) identifier typ args =
@@ -73,9 +81,12 @@ checkDefs env (def:defs) =
 checkDef :: Env -> Def -> Err Env
 checkDef env def = 
   case def of
-    DFun typ identifier args stmts -> do env_ <- addFun env identifier typ args
-                                         checkStmts env_ stmts
-                                         Ok env_
+    -- TODO ask: why do we only use env from addFun and never err?
+    DFun typ identifier args stmts ->
+      do
+        env_ <- addFun env identifier typ args
+        checkStmts env_ stmts
+        Ok env_
 
 checkStmts :: Env -> [ Stm ] -> Err Env
 checkStmts env [] = Ok ()
@@ -85,5 +96,36 @@ checkStmts env (stmt:stmts) =
     checkStmts env_ stmts
 
 checkStmt :: Env -> Stmt -> Err Env
-checkStmt env def = fail ("Not implemented")
+checkStmt env stmt =
+  case stmt of
+    SExp exp                 ->
+      checkExp env exp
+    SDecls typ identifiers   ->
+      addVars env identifiers typ
+    SInit typ identifier exp ->
+
+    SReturn exp              ->
+      checkExp env exp
+    SReturnVoid              ->
+      Ok env
+    SWhile exp stmt          ->
+      do
+        -- Expressions cannot change environment
+        checkExp exp
+        checkStmt env stmt
+        Ok env
+    SBlock stmts             ->
+      checkStmts env stmts
+    SIfElse exp stmt1 stmt2  ->
+      do
+        checkExp env exp
+        checkStmt env stmt1
+        checkStmt env stmt2
+        Ok env
+
+checkExp :: Env -> Exp -> Err Env
+checkExp env exp = fail ("Not implemented")
+
+
+
 
