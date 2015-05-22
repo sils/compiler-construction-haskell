@@ -65,6 +65,9 @@ lookupFun (scope:rest) identifier =
 addScope :: Env -> Env
 addScope env = ([],[]):env
 
+remScope :: Env -> Env
+remScope (scope:rest) = rest
+
 
 typecheck :: Program -> Err ()
 typecheck (PDefs defs) = checkDefs emptyEnv defs
@@ -86,7 +89,8 @@ checkDef env def =
       do
         env_ <- addFun env identifier typ args
         checkStmts env_ stmts
-        Ok env
+        env__ <- remScope env_
+        Ok env__
 
 checkStmts :: Env -> [ Stm ] -> Err Env
 checkStmts env [] = Ok env
