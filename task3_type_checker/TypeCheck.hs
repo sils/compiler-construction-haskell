@@ -195,12 +195,30 @@ checkExp env exp =
     EDiv lhs rhs             -> checkExpTypeEquality env lhs rhs
     EPlus lhs rhs            -> checkExpTypeEquality env lhs rhs
     EMinus lhs rhs           -> checkExpTypeEquality env lhs rhs
-    ELt lhs rhs              -> checkExpTypeEquality env lhs rhs
-    EGt lhs rhs              -> checkExpTypeEquality env lhs rhs
-    ELtEq lhs rhs            -> checkExpTypeEquality env lhs rhs
-    EGtEq lhs rhs            -> checkExpTypeEquality env lhs rhs
-    EEq lhs rhs              -> checkExpTypeEquality env lhs rhs
-    ENEq lhs rhs             -> checkExpTypeEquality env lhs rhs
+    ELt lhs rhs              ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
+    EGt lhs rhs              ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
+    ELtEq lhs rhs            ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
+    EGtEq lhs rhs            ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
+    EEq lhs rhs              ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
+    ENEq lhs rhs             ->
+      do
+        checkExpTypeEquality env lhs rhs
+        Ok Type_bool
     EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
     EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
@@ -214,7 +232,7 @@ checkExpType env exp typ =
       if expTyp == typ then
         Ok expTyp
       else
-        Bad ("Types don't match in function call. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ "but has type " ++ printTree expTyp)
+        Bad ("Types don't match in function call. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree expTyp)
     Bad s -> Bad s
 
 -- checks if types of both given expressions are equal, returns type of expressions or error
