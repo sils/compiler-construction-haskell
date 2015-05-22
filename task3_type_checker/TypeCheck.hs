@@ -157,9 +157,12 @@ checkStmt env stmt typ =
       do
         env_ <- addScope env
         -- Expressions cannot change environment
-        checkExp env_ exp
-        checkStmt env_ stmt typ
-        Ok env
+        if (checkExp env_ exp == Ok Type_bool) then
+          do
+            checkStmt env_ stmt typ
+            Ok env
+        else
+          Bad ("Expression of while loops must be of type boolean")
     SBlock stmts             ->
       do
         env_ <- addScope env
@@ -168,10 +171,13 @@ checkStmt env stmt typ =
     SIfElse exp stmt1 stmt2  ->
       do
         env_ <- addScope env
-        checkExp env_ exp
-        checkStmt env_ stmt1 typ
-        checkStmt env_ stmt2 typ
-        Ok env
+        if (checkExp env_ exp == Ok Type_bool) then
+          do
+            checkStmt env_ stmt1 typ
+            checkStmt env_ stmt2 typ
+            Ok env
+        else
+          Bad ("Expression in if expressions must be of type boolean")
 
 checkExp :: Env -> Exp -> Err Type
 checkExp env exp =
