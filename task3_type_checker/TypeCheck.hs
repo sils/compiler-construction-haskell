@@ -86,7 +86,7 @@ checkDef env def =
       do
         env_ <- addFun env identifier typ args
         checkStmts env_ stmts
-        Ok env_
+        Ok env
 
 checkStmts :: Env -> [ Stm ] -> Err Env
 checkStmts env [] = Ok env
