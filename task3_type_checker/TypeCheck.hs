@@ -122,17 +122,22 @@ checkStmt env stmt =
       Ok env
     SWhile exp stmt          ->
       do
+        env_ <- addScope env
         -- Expressions cannot change environment
-        checkExp env exp
-        checkStmt env stmt
+        checkExp env_ exp
+        checkStmt env_ stmt
         Ok env
     SBlock stmts             ->
-      checkStmts env stmts
+      do
+        env_ <- addScope env
+        checkStmts env_ stmts
+        Ok env
     SIfElse exp stmt1 stmt2  ->
       do
-        checkExp env exp
-        checkStmt env stmt1
-        checkStmt env stmt2
+        env_ <- addScope env
+        checkExp env_ exp
+        checkStmt env_ stmt1
+        checkStmt env_ stmt2
         Ok env
 
 checkExp :: Env -> Exp -> Err Type
