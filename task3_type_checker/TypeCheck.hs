@@ -36,7 +36,7 @@ addFun env@(scope:rest) identifier typ args =
     Nothing ->
       do
         -- enter function scope
-        env_ <- Ok (addScope env)
+        env_ <- addScope env
         -- add all argument variables to scope
         env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
         -- create function signature
