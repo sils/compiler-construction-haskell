@@ -44,8 +44,21 @@ addFun env@(scope:rest) identifier typ args =
         -- create function signature
         let sig = (typ, map (\(ADecl typ identifier) -> typ) args)
         -- add function signature to outer scope
-        Ok ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
+        remScope ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
     Just _ -> Bad ("Function " ++ printTree identifier ++ " was already declared.")
+
+addParams :: Env -> Id -> Type -> [ Arg ] -> Err Env
+addParams [] _ _ _ = Bad ("Can't add a function params to environment without scopes")
+addParams env@(scope:rest) identifier typ args =
+  case lookup identifier (fst scope) of
+    Nothing -> Bad ("Function " ++ printTree identifier ++ " was not declared.")
+    Just _  ->
+      do
+        -- enter function scope
+        env_ <- addScope env
+        -- add all argument variables to scope
+        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
+        Ok env__
 
 -- Looks up a variable in the given environment.
 lookupVar :: Env -> Id -> Err Type
@@ -73,7 +86,24 @@ remScope (scope:rest) = Ok rest
 
 
 typecheck :: Program -> Err ()
-typecheck (PDefs defs) = checkDefs emptyEnv defs
+typecheck (PDefs defs) =
+  do
+    env <- checkDecls emptyEnv defs
+    checkDefs env defs
+
+
+checkDecls :: Env -> [ Def ] -> Err Env
+checkDecls env [] = Ok env
+checkDecls env (def:defs) =
+  do
+    -- Why monad needed?
+    env_ <- checkDecl env def
+    checkDecls env_ defs
+
+checkDecl :: Env -> Def -> Err Env
+checkDecl env def =
+  case def of
+    DFun typ identifier args stmts -> addFun env identifier typ args
 
 checkDefs :: Env -> [ Def ] -> Err ()
 checkDefs env [] = Ok ()
@@ -85,12 +115,12 @@ checkDefs env (def:defs) =
 
 
 checkDef :: Env -> Def -> Err Env
-checkDef env def = 
+checkDef env def =
   case def of
-    -- TODO ask: why do we only use env from addFun and never err?
+    -- TODO ask: why do we only use env from addParams and never err?
     DFun typ identifier args stmts ->
       do
-        env_ <- addFun env identifier typ args
+        env_ <- addParams env identifier typ args
         checkStmts env_ stmts
         env__ <- remScope env_
         Ok env__
