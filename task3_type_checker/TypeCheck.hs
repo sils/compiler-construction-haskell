@@ -185,8 +185,12 @@ checkExp env exp =
     EApp id exprs            -> 
       do
         (retType, types) <- lookupFun env id
-        mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
-        Ok retType
+        if (length exprs == length types) then
+          do
+            mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
+            Ok retType
+        else
+          Bad ("Number of passed arguments doesn't match function declaration")
     EPIncr exp               -> checkExp env exp
     EPDecr exp               -> checkExp env exp
     EIncr exp                -> checkExp env exp
