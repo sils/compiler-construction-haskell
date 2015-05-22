@@ -16,6 +16,7 @@ emptyEnv = [([],[])]
 
 -- Adds a variable to the uppermost scope of the given environment.
 addVar :: Env -> Id -> Type -> Err Env
+addVar [] _ _ = Bad ("Can't add a variable to environment without scopes")
 addVar (scope:rest) identifier typ =
   case lookup identifier (snd scope) of
     Nothing -> Ok ((fst scope, (identifier, typ):(snd scope)):rest)
@@ -31,6 +32,7 @@ addVars env (top:rest) typ =
 
 -- Adds a function definition to uppermost scope of the given environment
 addFun :: Env -> Id -> Type -> [ Arg ] -> Err Env
+addFun [] _ _ _ = Bad ("Can't add a function to environment without scopes")
 addFun env@(scope:rest) identifier typ args =
   case lookup identifier (fst scope) of
     Nothing ->
@@ -60,10 +62,11 @@ lookupFun (scope:rest) identifier =
   case lookup identifier (fst scope) of
     Nothing -> lookupFun rest identifier
     Just sig -> Ok sig
+lookupFun [] _ = Bad ("Matched Pattern 2")
 
 -- Adds a new empty scope to the environment.
 addScope :: Env -> Err Env
-addScope env = Ok ([],[]):env
+addScope env = Ok (([],[]):env)
 
 remScope :: Env -> Err Env
 remScope [] = Bad []
@@ -148,10 +151,17 @@ checkExp env exp =
     EFalse                   -> Ok Type_bool
     EInt _                   -> Ok Type_int
     EDouble _                -> Ok Type_double
-    EId _                    -> Ok Type_void
-    EApp id exprs            -> Ok Type_void -- TODO - check function declaration, return return type of function
+    EString _                -> Ok Type_string
+    EId id                   -> lookupVar env id
+    EApp id exprs            -> 
+      do
+        (retType, types) <- lookupFun env id
+        mapM (\(exp, typ) -> if checkExp env exp == Ok typ then Ok typ else Bad ("Types don't match in function call exp : " ++ printTree exp ++ " should be of type " ++ printTree typ)) (zip exprs types)
+        Ok retType
     EPIncr exp               -> checkExp env exp
     EPDecr exp               -> checkExp env exp
+    EIncr exp                -> checkExp env exp
+    EDecr exp                -> checkExp env exp
     ETimes lhs rhs           -> checkExpTypeEquality env lhs rhs
     EDiv lhs rhs             -> checkExpTypeEquality env lhs rhs
     EPlus lhs rhs            -> checkExpTypeEquality env lhs rhs
@@ -165,6 +175,7 @@ checkExp env exp =
     EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
     EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
+    ETyped _ typ            -> Ok typ
 
 -- checks if types of both given expressions are equal, returns type of expressions or error
 checkExpTypeEquality :: Env -> Exp -> Exp -> Err Type
@@ -175,7 +186,7 @@ checkExpTypeEquality env lhs rhs =
     if (typ1 == typ2) then
       Ok typ1
     else
-      Bad ("Types don't match")
+      Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typ1 ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typ2)
 
 -- checks if types of both given expressions are boolean, returns Type_bool or error
 checkExpTypesAreBool :: Env -> Exp -> Exp -> Err Type
