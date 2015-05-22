@@ -57,12 +57,11 @@ lookupVar (scope:rest) identifier =
 
 -- Looks up a function in the given environment
 lookupFun :: Env -> Id -> Err (Type, [Type])
-loopupFun [] identifier = Bad ("Unknown variable" ++ printTree identifier ++ ".")
+lookupFun [] identifier = Bad ("Unknown Function " ++ printTree identifier ++ ".")
 lookupFun (scope:rest) identifier =
   case lookup identifier (fst scope) of
     Nothing -> lookupFun rest identifier
     Just sig -> Ok sig
-lookupFun [] _ = Bad ("Matched Pattern 2")
 
 -- Adds a new empty scope to the environment.
 addScope :: Env -> Err Env
@@ -156,7 +155,7 @@ checkExp env exp =
     EApp id exprs            -> 
       do
         (retType, types) <- lookupFun env id
-        mapM (\(exp, typ) -> if checkExp env exp == Ok typ then Ok typ else Bad ("Types don't match in function call exp : " ++ printTree exp ++ " should be of type " ++ printTree typ)) (zip exprs types)
+        mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
         Ok retType
     EPIncr exp               -> checkExp env exp
     EPDecr exp               -> checkExp env exp
@@ -176,6 +175,17 @@ checkExp env exp =
     EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
     ETyped _ typ            -> Ok typ
+
+-- checks if given expression is of given type
+checkExpType :: Env -> Exp -> Type -> Err Type
+checkExpType env exp typ =
+  case checkExp env exp of
+    Ok expTyp ->
+      if expTyp == typ then
+        Ok expTyp
+      else
+        Bad ("Types don't match in function call. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ "but has type " ++ printTree expTyp)
+    Bad s -> Bad s
 
 -- checks if types of both given expressions are equal, returns type of expressions or error
 checkExpTypeEquality :: Env -> Exp -> Exp -> Err Type
