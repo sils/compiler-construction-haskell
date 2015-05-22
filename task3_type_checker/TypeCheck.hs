@@ -121,19 +121,19 @@ checkDef env def =
     DFun typ identifier args stmts ->
       do
         env_ <- addParams env identifier typ args
-        checkStmts env_ stmts
+        checkStmts env_ stmts typ
         env__ <- remScope env_
         Ok env__
 
-checkStmts :: Env -> [ Stm ] -> Err Env
-checkStmts env [] = Ok env
-checkStmts env (stmt:stmts) =
+checkStmts :: Env -> [ Stm ] -> Type -> Err Env
+checkStmts env [] _ = Ok env
+checkStmts env (stmt:stmts) typ =
   do
-    env_ <- checkStmt env stmt
-    checkStmts env_ stmts
+    env_ <- checkStmt env stmt typ
+    checkStmts env_ stmts typ
 
-checkStmt :: Env -> Stm -> Err Env
-checkStmt env stmt =
+checkStmt :: Env -> Stm -> Type -> Err Env
+checkStmt env stmt typ =
   case stmt of
     SExp exp                 ->
       do
@@ -149,7 +149,7 @@ checkStmt env stmt =
           Bad ("Expression is of wrong type")
     SReturn exp              ->
       do
-        checkExp env exp
+        checkExpType env exp typ
         Ok env
     SReturnVoid              ->
       Ok env
@@ -158,19 +158,19 @@ checkStmt env stmt =
         env_ <- addScope env
         -- Expressions cannot change environment
         checkExp env_ exp
-        checkStmt env_ stmt
+        checkStmt env_ stmt typ
         Ok env
     SBlock stmts             ->
       do
         env_ <- addScope env
-        checkStmts env_ stmts
+        checkStmts env_ stmts typ
         Ok env
     SIfElse exp stmt1 stmt2  ->
       do
         env_ <- addScope env
         checkExp env_ exp
-        checkStmt env_ stmt1
-        checkStmt env_ stmt2
+        checkStmt env_ stmt1 typ
+        checkStmt env_ stmt2 typ
         Ok env
 
 checkExp :: Env -> Exp -> Err Type
