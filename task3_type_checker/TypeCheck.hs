@@ -191,14 +191,14 @@ checkExp env exp =
             Ok retType
         else
           Bad ("Number of passed arguments doesn't match function declaration")
-    EPIncr exp               -> checkExp env exp
-    EPDecr exp               -> checkExp env exp
-    EIncr exp                -> checkExp env exp
-    EDecr exp                -> checkExp env exp
-    ETimes lhs rhs           -> checkExpTypeEquality env lhs rhs
-    EDiv lhs rhs             -> checkExpTypeEquality env lhs rhs
-    EPlus lhs rhs            -> checkExpTypeEquality env lhs rhs
-    EMinus lhs rhs           -> checkExpTypeEquality env lhs rhs
+    EPIncr exp               -> checkUnaryArithmeticOperator env exp
+    EPDecr exp               -> checkUnaryArithmeticOperator env exp
+    EIncr exp                -> checkUnaryArithmeticOperator env exp
+    EDecr exp                -> checkUnaryArithmeticOperator env exp
+    ETimes lhs rhs           -> checkArithmeticOperator env lhs rhs
+    EDiv lhs rhs             -> checkArithmeticOperator env lhs rhs
+    EPlus lhs rhs            -> checkPlusOperator env lhs rhs
+    EMinus lhs rhs           -> checkArithmeticOperator env lhs rhs
     ELt lhs rhs              ->
       do
         checkExpTypeEquality env lhs rhs
@@ -227,6 +227,34 @@ checkExp env exp =
     EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
     ETyped _ typ            -> Ok typ
+
+checkUnaryArithmeticOperator :: Env -> Exp -> Err Type
+checkUnaryArithmeticOperator env exp =
+  do
+    typ <- checkExp env exp
+    if (typ == Type_int || typ == Type_double) then
+      Ok typ
+    else
+      Bad ("Unary operators are only defined for int and double")
+
+checkArithmeticOperator :: Env -> Exp -> Exp -> Err Type
+checkArithmeticOperator env lhs rhs =
+  do
+    lhsTyp <- checkExp env lhs
+    if (lhsTyp == Type_int || lhsTyp == Type_double) then
+      checkExpType env rhs lhsTyp
+    else
+      Bad ("Arithmetic operator is only definded for types int and double")
+
+checkPlusOperator :: Env -> Exp -> Exp -> Err Type
+checkPlusOperator env lhs rhs =
+  do
+    lhsTyp <- checkExp env lhs
+    if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
+      checkExpType env rhs lhsTyp
+    else
+      Bad ("Arithmetic operator is only definded for types int and double")
+
 
 -- checks if given expression is of given type
 checkExpType :: Env -> Exp -> Type -> Err Type
