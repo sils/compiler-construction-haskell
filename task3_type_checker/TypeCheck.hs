@@ -62,8 +62,8 @@ lookupFun (scope:rest) identifier =
     Just sig -> Ok sig
 
 -- Adds a new empty scope to the environment.
-addScope :: Env -> Env
-addScope env = ([],[]):env
+addScope :: Env -> Err Env
+addScope env = Ok ([],[]):env
 
 remScope :: Env -> Err Env
 remScope [] = Bad []
