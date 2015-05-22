@@ -65,8 +65,9 @@ lookupFun (scope:rest) identifier =
 addScope :: Env -> Env
 addScope env = ([],[]):env
 
-remScope :: Env -> Env
-remScope (scope:rest) = rest
+remScope :: Env -> Err Env
+remScope [] = Bad []
+remScope (scope:rest) = Ok rest
 
 
 typecheck :: Program -> Err ()
