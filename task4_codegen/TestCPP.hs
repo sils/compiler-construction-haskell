@@ -32,21 +32,21 @@ runFile v p f = putStrLn f >> readFile f >>= run v p
 
 run :: Verbosity -> ParseFun Program -> String -> IO ()
 run v p s = let ts = myLLexer s in case p ts of
-           Bad s    -> do putStrLn "\nParse              Failed...\n"
-                          putStrV v "Tokens:"
-                          putStrV v $ show ts
-                          putStrLn s
-                          exitFailure
-           Ok  tree -> do putStrLn "\nParse Successful!"
-                          showTree v tree
-                          case typecheck tree of
-                            Bad s -> do
-                                       putStrLn "\nFuck, Type check failed...\n"
-                                       putStrLn s
-                                       exitFailure
-                            Ok _ -> do
-                                         putStrLn "\nHell Yeah, your shit type checked\n"
-                                         exitSuccess
+    Bad s    -> do putStrLn "\nParse              Failed...\n"
+        putStrV v "Tokens:"
+        putStrV v $ show ts
+        putStrLn s
+        exitFailure
+    Ok  tree -> do putStrLn "\nParse Successful!"
+        showTree v tree
+        case typecheck tree of
+            Bad s -> do
+                putStrLn "\nFuck, Type check failed...\n"
+                putStrLn s
+                exitFailure
+            Ok _ -> do
+                putStrLn "\nHell Yeah, your shit type checked\n"
+                exitSuccess
 
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()
@@ -61,8 +61,4 @@ main = do args <- getArgs
             [] -> hGetContents stdin >>= run 2 pProgram
             "-s":fs -> mapM_ (runFile 0 pProgram) fs
             fs -> mapM_ (runFile 2 pProgram) fs
-
-
-
-
 
