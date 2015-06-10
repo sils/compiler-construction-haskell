@@ -5,6 +5,7 @@ import PrintCPP
 import ErrM
 import Control.Monad
 
+
 type VarInfo = (Type, Int)
 
 -- Id of Function with return type and types of arguments
@@ -109,11 +110,12 @@ remScope (E _ _ []) = Bad "Can't remove scope from environment without scopes"
 remScope (E nextTmp code (scope:rest)) = Ok (E nextTmp code rest)
 
 
-typecheck :: Program -> Err ()
+typecheck :: Program -> Err [Instruction]
 typecheck (PDefs defs) =
   do
-    env <- checkDecls emptyGEnv defs
-    checkDefs env defs
+    gEnv <- checkDecls emptyGEnv defs
+    gEnv_ <- checkDefs gEnv defs
+    Ok (code gEnv_)
 
 
 checkDecls :: GEnv -> [ Def ] -> Err GEnv
@@ -129,13 +131,15 @@ checkDecl gEnv def =
   case def of
     DFun typ identifier args stmts -> addFun gEnv identifier typ args
 
-checkDefs :: GEnv -> [ Def ] -> Err ()
-checkDefs gEnv [] = Ok ()
+checkDefs :: GEnv -> [ Def ] -> Err GEnv
+checkDefs gEnv [] = Ok emptyGEnv
+checkDefs gEnv [def] = checkDef gEnv def
 checkDefs gEnv (def:defs) =
   do
     -- Why monad needed?
     gEnv_ <- checkDef gEnv def
-    checkDefs gEnv_ defs
+    gEnv__ <- checkDefs gEnv_ defs
+    Ok gEnv__
 
 
 checkDef :: GEnv -> Def -> Err GEnv
@@ -329,7 +333,7 @@ emit :: Instruction -> GEnv -> Err GEnv
 emit instr (E nextTmp code env) = Ok (E nextTmp (code ++ [instr]) env)
 
 define :: Type -> Id -> [Arg] -> Instruction
-define typ id args = "define " ++ (getLLVMType typ) ++ " @ " ++ (show id) ++ " (" ++ compileArgs(args) ++ ") #0"
+define typ id args = "define " ++ (getLLVMType typ) ++ " @" ++ (printTree id) ++ " (" ++ compileArgs(args) ++ ") #0"
 
 compileArgs :: [Arg] -> String
 compileArgs [] = ""
@@ -337,7 +341,7 @@ compileArgs [a] = compileArg a
 compileArgs (a:as) = (compileArg a) ++ ("," ++ (compileArgs as))
 
 compileArg :: Arg -> String
-compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (show id)
+compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (printTree id)
 
 getLLVMType :: Type -> String
 getLLVMType typ =

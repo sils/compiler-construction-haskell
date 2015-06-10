@@ -44,8 +44,9 @@ run v p s = let ts = myLLexer s in case p ts of
                                        putStrLn "\nFuck, Type check failed...\n"
                                        putStrLn s
                                        exitFailure
-                            Ok _ -> do
+                            Ok instructions -> do
                                          putStrLn "\nHell Yeah, your shit type checked\n"
+                                         mapM_ putStrLn instructions
                                          exitSuccess
 
 
