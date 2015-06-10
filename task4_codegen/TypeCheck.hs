@@ -28,6 +28,10 @@ emptyGEnv = E {
   env = emptyEnv
 }
 
+-- update nextTmp property of CodegenEnvironment
+createNextTmp :: GEnv -> GEnv
+createNextTmp (E nextTmp code tEnv) = E (nextTmp + 1) code tEnv
+
 -- The environment is a list of *scopes*. Each scope holds a list of
 -- Identifiers and their associated types.
 type Env = [([Fun], [Var])]
@@ -141,9 +145,12 @@ checkDef gEnv def =
     DFun typ identifier args stmts ->
       do
         gEnv_ <- addParams gEnv identifier typ args
-        checkStmts gEnv_ stmts typ
-        gEnv__ <- remScope gEnv_
-        Ok gEnv__
+        gEnv__ <- emit (define typ identifier args) gEnv_
+        gEnv___ <- emit "{" gEnv__
+        checkStmts gEnv___ stmts typ
+        gEnv____ <- emit "}" gEnv___
+        gEnv_____ <- remScope gEnv____
+        Ok gEnv_____
 
 checkStmts :: GEnv -> [ Stm ] -> Type -> Err GEnv
 checkStmts gEnv [] _ = Ok gEnv
@@ -315,5 +322,29 @@ checkExpTypesAreBool env lhs rhs =
       else
         Bad ("Types must be boolean in Conjuctions and Disjunctions")
 
+------------------------------------------------------------------------------------------------------------------------------
+-- 							CodeGenerator methods
+------------------------------------------------------------------------------------------------------------------------------
+emit :: Instruction -> GEnv -> Err GEnv
+emit instr (E nextTmp code env) = Ok (E nextTmp (code ++ [instr]) env)
 
+define :: Type -> Id -> [Arg] -> Instruction
+define typ id args = "define " ++ (getLLVMType typ) ++ " @ " ++ (show id) ++ " (" ++ compileArgs(args) ++ ") #0"
+
+compileArgs :: [Arg] -> String
+compileArgs [] = ""
+compileArgs [a] = compileArg a
+compileArgs (a:as) = (compileArg a) ++ ("," ++ (compileArgs as))
+
+compileArg :: Arg -> String
+compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (show id)
+
+getLLVMType :: Type -> String
+getLLVMType typ =
+  case typ of
+    Type_void -> "void"
+    Type_bool -> "i1"
+    Type_int -> "i32"
+    Type_double -> "f64"
+ -- Type_string -> not supported
 
