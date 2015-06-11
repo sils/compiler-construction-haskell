@@ -5,8 +5,6 @@ import PrintCPP
 import ErrM
 import Control.Monad
 
-import Debug.Trace
-
 type Fun = (Id, (Type, [Type]))
 type Var = (Id, Type)
 
