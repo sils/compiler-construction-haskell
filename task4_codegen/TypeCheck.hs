@@ -246,79 +246,79 @@ checkExp env exp =
           Bad ("Number of passed arguments doesn't match function declaration")
     EPIncr exp               ->
       do
-        aExp <- checkUnaryArithmeticOperator env exp
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PostIncrement"
         typ <- getTyp aExp
         Ok (ETyped (EPIncr aExp) typ)
     EPDecr exp               ->
       do
-        aExp <- checkUnaryArithmeticOperator env exp
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PostDecrement"
         typ <- getTyp aExp
         Ok (ETyped (EPDecr aExp) typ)
     EIncr exp                ->
       do
-        aExp <- checkUnaryArithmeticOperator env exp
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PreIncrement"
         typ <- getTyp aExp
         Ok (ETyped (EIncr aExp) typ)
     EDecr exp                ->
       do
-        aExp <- checkUnaryArithmeticOperator env exp
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PreDecrement"
         typ <- getTyp aExp
         Ok (ETyped (EDecr aExp) typ)
     ETimes lhs rhs           ->
       do
-        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Times (*)"
         typ <- getTyp aLhs
         Ok (ETyped (ETimes aLhs aRhs) typ)
     EDiv lhs rhs             ->
       do
-        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Div (/)"
         typ <- getTyp aLhs
         Ok (ETyped (EDiv aLhs aRhs) typ)
     EPlus lhs rhs            ->
       do
-        (aLhs, aRhs) <- checkPlusOperator env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Plus (+)"
         typ <- getTyp aLhs
         Ok (ETyped (EPlus aLhs aRhs) typ)
     EMinus lhs rhs           ->
       do
-        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Minus (-)"
         typ <- getTyp aLhs
         Ok (ETyped (EMinus aLhs aRhs) typ)
     ELt lhs rhs              ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Lt (<)"
         Ok (ETyped (ELt aLhs aRhs) Type_bool)
     EGt lhs rhs              ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Gt (>)"
         Ok (ETyped (EGt aLhs aRhs) Type_bool)
     ELtEq lhs rhs            ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "LtEq (<=)"
         Ok (ETyped (ELtEq aLhs aRhs) Type_bool)
     EGtEq lhs rhs            ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "GtEq (>=)"
         Ok (ETyped (EGtEq aLhs aRhs) Type_bool)
     EEq lhs rhs              ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Eq (==)"
         Ok (ETyped (EEq aLhs aRhs) Type_bool)
     ENEq lhs rhs             ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "NEq (!=)"
         Ok (ETyped (ENEq aLhs aRhs) Type_bool)
     EAnd lhs rhs             ->
       do
-        (aLhs, aRhs) <- checkExpTypesAreBool env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_bool] "And (&&)"
         Ok (ETyped (EAnd aLhs aRhs) Type_bool)
     EOr lhs rhs              ->
       do
-        (aLhs, aRhs) <- checkExpTypesAreBool env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_bool] "Or (||)"
         Ok (ETyped (EAnd aLhs aRhs) Type_bool)
     EAss lhs rhs             ->
       do
-        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Assignment (=)"
         typ <- getTyp aLhs
         Ok (ETyped (EAss aLhs aRhs) typ)
     ETyped _ typ            -> Ok exp
@@ -333,67 +333,45 @@ checkExpType env exp typ =
         if isTyp == typ then
           Ok (ETyped exp typ)
         else
-          Bad ("Type mismatch. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree isTyp)
+          Bad ("Type mismatch. Exp " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree isTyp)
     Bad s -> Bad s
 
 -- checks if types of both given expressions are equal, returns annotated expressions or error
 checkExpTypeEquality :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkExpTypeEquality env lhs rhs =
   do
-    typ1 <- checkExp env lhs
-    typ2 <- checkExp env rhs
-    if (getTyp typ1 == getTyp typ2) then
-      Ok (typ1, typ2)
+    aLhs <- checkExp env lhs
+    typLhs <- getTyp aLhs
+    aRhs <- checkExp env rhs
+    typRhs <- getTyp aRhs
+    if (getTyp aLhs == getTyp aRhs) then
+      Ok (aLhs, aRhs)
     else
-      Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typ1 ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typ2)
-
--- checks if types of both given expressions are boolean, returns both expressions annotated
-checkExpTypesAreBool :: Env -> Exp -> Exp -> Err (Exp, Exp)
-checkExpTypesAreBool env lhs rhs =
-  do
-    typ1 <- checkExp env lhs
-    typ2 <- checkExp env rhs
-    if (getTyp typ1 == Ok Type_bool && getTyp typ2 == Ok Type_bool) then
-      Ok (typ1, typ2)
-    else
-      Bad ("Types must be boolean in Conjuctions and Disjunctions")
+      Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typLhs ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typRhs)
 
 -- infer type of unary operator
-checkUnaryArithmeticOperator :: Env -> Exp -> Err Exp
-checkUnaryArithmeticOperator env exp =
+checkUnaryOperator :: Env -> Exp -> [Type] -> String -> Err Exp
+checkUnaryOperator env exp types name =
   do
     aExp <- checkExp env exp
     typ <- getTyp aExp
-    if (typ == Type_int || typ == Type_double) then
+    if (elem typ types) then
       Ok aExp
     else
-      Bad ("Unary operators are only defined for int and double")
+      Bad ("Unary operators " ++ name ++ " is only defined for types " ++ show types)
 
 -- infer type of arithmetic operator
-checkArithmeticOperator :: Env -> Exp -> Exp -> Err (Exp, Exp)
-checkArithmeticOperator env lhs rhs =
+checkBinaryOperator :: Env -> Exp -> Exp -> [Type] -> String -> Err (Exp, Exp)
+checkBinaryOperator env lhs rhs types name =
   do
     aExpLhs <- checkExp env lhs
     lhsTyp <- getTyp aExpLhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double) then
+    if (elem lhsTyp types) then
       do
         aExpRhs <- checkExpType env rhs lhsTyp
         Ok (aExpLhs, aExpRhs)
     else
-      Bad ("Arithmetic operator is only definded for types int and double")
-
--- infer type of + operator
-checkPlusOperator :: Env -> Exp -> Exp -> Err (Exp, Exp)
-checkPlusOperator env lhs rhs =
-  do
-    aExpLhs <- checkExp env lhs
-    lhsTyp <- getTyp aExpLhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
-      do
-        aExpRhs <- checkExpType env rhs lhsTyp
-        Ok (aExpLhs, aExpRhs)
-    else
-      Bad ("Arithmetic operator is only definded for types int and double")
+      Bad ("Arithmetic operator " ++ name ++ " is only definded for types " ++ show types)
 
 -- Get Type wrapped in ETyped
 getTyp :: Exp -> Err Type
