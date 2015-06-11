@@ -14,6 +14,24 @@ type Env = [([Fun], [Var])]
 emptyEnv :: Env
 emptyEnv = [([],[])]
 
+-- TypeCheck given program
+-- adds all function declarations to outer scope
+-- then typeChecks all functions
+typecheck :: Program -> Err ()
+typecheck (PDefs defs) =
+  do
+    env <- checkDecls emptyEnv defs
+    checkDefs env defs
+
+-- Adds a new empty scope to the environment.
+addScope :: Env -> Err Env
+addScope env = Ok (([],[]):env)
+
+-- Remove outermost scope of environment
+remScope :: Env -> Err Env
+remScope [] = Bad []
+remScope (scope:rest) = Ok rest
+
 -- Adds a variable to the uppermost scope of the given environment.
 addVar :: Env -> Id -> Type -> Err Env
 addVar [] _ _ = Bad ("Can't add a variable to environment without scopes")
@@ -47,6 +65,7 @@ addFun env@(scope:rest) identifier typ args =
         remScope ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
     Just _ -> Bad ("Function " ++ printTree identifier ++ " was already declared.")
 
+-- enters scope of given function, adds all parameters of function to new scope
 addParams :: Env -> Id -> Type -> [ Arg ] -> Err Env
 addParams [] _ _ _ = Bad ("Can't add a function params to environment without scopes")
 addParams env@(scope:rest) identifier typ args =
@@ -76,22 +95,7 @@ lookupFun (scope:rest) identifier =
     Nothing -> lookupFun rest identifier
     Just sig -> Ok sig
 
--- Adds a new empty scope to the environment.
-addScope :: Env -> Err Env
-addScope env = Ok (([],[]):env)
-
-remScope :: Env -> Err Env
-remScope [] = Bad []
-remScope (scope:rest) = Ok rest
-
-
-typecheck :: Program -> Err ()
-typecheck (PDefs defs) =
-  do
-    env <- checkDecls emptyEnv defs
-    checkDefs env defs
-
-
+-- Check a list of declarations
 checkDecls :: Env -> [ Def ] -> Err Env
 checkDecls env [] = Ok env
 checkDecls env (def:defs) =
@@ -100,11 +104,13 @@ checkDecls env (def:defs) =
     env_ <- checkDecl env def
     checkDecls env_ defs
 
+-- Check a declaration for validity
 checkDecl :: Env -> Def -> Err Env
 checkDecl env def =
   case def of
     DFun typ identifier args stmts -> addFun env identifier typ args
 
+-- Check a list of definitions
 checkDefs :: Env -> [ Def ] -> Err ()
 checkDefs env [] = Ok ()
 checkDefs env (def:defs) =
@@ -113,7 +119,7 @@ checkDefs env (def:defs) =
     env_ <- checkDef env def
     checkDefs env_ defs
 
-
+-- Check definition
 checkDef :: Env -> Def -> Err Env
 checkDef env def =
   case def of
@@ -125,6 +131,7 @@ checkDef env def =
         env__ <- remScope env_
         Ok env__
 
+-- check a list of statements
 checkStmts :: Env -> [ Stm ] -> Type -> Err Env
 checkStmts env [] _ = Ok env
 checkStmts env (stmt:stmts) typ =
@@ -132,6 +139,7 @@ checkStmts env (stmt:stmts) typ =
     env_ <- checkStmt env stmt typ
     checkStmts env_ stmts typ
 
+-- check a statement for validity
 checkStmt :: Env -> Stm -> Type -> Err Env
 checkStmt env stmt typ =
   case stmt of
@@ -179,6 +187,7 @@ checkStmt env stmt typ =
         else
           Bad ("Expression in if expressions must be of type boolean")
 
+-- Infer type of expression
 checkExp :: Env -> Exp -> Err Type
 checkExp env exp =
   case exp of
@@ -234,34 +243,6 @@ checkExp env exp =
     EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
     ETyped _ typ            -> Ok typ
 
-checkUnaryArithmeticOperator :: Env -> Exp -> Err Type
-checkUnaryArithmeticOperator env exp =
-  do
-    typ <- checkExp env exp
-    if (typ == Type_int || typ == Type_double) then
-      Ok typ
-    else
-      Bad ("Unary operators are only defined for int and double")
-
-checkArithmeticOperator :: Env -> Exp -> Exp -> Err Type
-checkArithmeticOperator env lhs rhs =
-  do
-    lhsTyp <- checkExp env lhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double) then
-      checkExpType env rhs lhsTyp
-    else
-      Bad ("Arithmetic operator is only definded for types int and double")
-
-checkPlusOperator :: Env -> Exp -> Exp -> Err Type
-checkPlusOperator env lhs rhs =
-  do
-    lhsTyp <- checkExp env lhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
-      checkExpType env rhs lhsTyp
-    else
-      Bad ("Arithmetic operator is only definded for types int and double")
-
-
 -- checks if given expression is of given type
 checkExpType :: Env -> Exp -> Type -> Err Type
 checkExpType env exp typ =
@@ -292,5 +273,33 @@ checkExpTypesAreBool env lhs rhs =
       else
         Bad ("Types must be boolean in Conjuctions and Disjunctions")
 
+-- infer type of unary operator
+checkUnaryArithmeticOperator :: Env -> Exp -> Err Type
+checkUnaryArithmeticOperator env exp =
+  do
+    typ <- checkExp env exp
+    if (typ == Type_int || typ == Type_double) then
+      Ok typ
+    else
+      Bad ("Unary operators are only defined for int and double")
 
+-- infer type of arithmetic operator
+checkArithmeticOperator :: Env -> Exp -> Exp -> Err Type
+checkArithmeticOperator env lhs rhs =
+  do
+    lhsTyp <- checkExp env lhs
+    if (lhsTyp == Type_int || lhsTyp == Type_double) then
+      checkExpType env rhs lhsTyp
+    else
+      Bad ("Arithmetic operator is only definded for types int and double")
+
+-- infer type of + operator
+checkPlusOperator :: Env -> Exp -> Exp -> Err Type
+checkPlusOperator env lhs rhs =
+  do
+    lhsTyp <- checkExp env lhs
+    if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
+      checkExpType env rhs lhsTyp
+    else
+      Bad ("Arithmetic operator is only definded for types int and double")
 
