@@ -217,81 +217,89 @@ checkExp env exp =
         (retType, types) <- lookupFun env id
         if (length exprs == length types) then
           do
-            mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
-            Ok (ETyped exp retType)
+            aExprs <- mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
+            Ok (ETyped (EApp id aExprs) retType)
         else
           Bad ("Number of passed arguments doesn't match function declaration")
     EPIncr exp               ->
       do
-        typ <- checkUnaryArithmeticOperator env exp
-        Ok (ETyped exp typ)
+        aExp <- checkUnaryArithmeticOperator env exp
+        typ <- getTyp aExp
+        Ok (ETyped (EPIncr aExp) typ)
     EPDecr exp               ->
       do
-        typ <- checkUnaryArithmeticOperator env exp
-        Ok (ETyped exp typ)
+        aExp <- checkUnaryArithmeticOperator env exp
+        typ <- getTyp aExp
+        Ok (ETyped (EPDecr aExp) typ)
     EIncr exp                ->
       do
-        typ <- checkUnaryArithmeticOperator env exp
-        Ok (ETyped exp typ)
+        aExp <- checkUnaryArithmeticOperator env exp
+        typ <- getTyp aExp
+        Ok (ETyped (EIncr aExp) typ)
     EDecr exp                ->
       do
-        typ <- checkUnaryArithmeticOperator env exp
-        Ok (ETyped exp typ)
+        aExp <- checkUnaryArithmeticOperator env exp
+        typ <- getTyp aExp
+        Ok (ETyped (EDecr aExp) typ)
     ETimes lhs rhs           ->
       do
-        typ <- checkArithmeticOperator env lhs rhs
-        Ok (ETyped (ETimes (ETyped lhs typ) (ETyped rhs typ)) typ)
+        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        typ <- getTyp aLhs
+        Ok (ETyped (ETimes aLhs aRhs) typ)
     EDiv lhs rhs             ->
       do
-        typ <- checkArithmeticOperator env lhs rhs
-        Ok (ETyped (ETimes (ETyped lhs typ) (ETyped rhs typ)) typ)
+        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        typ <- getTyp aLhs
+        Ok (ETyped (EDiv aLhs aRhs) typ)
     EPlus lhs rhs            ->
       do
-        typ <- checkPlusOperator env lhs rhs
-        Ok (ETyped (EPlus (ETyped lhs typ) (ETyped rhs typ)) typ)
+        (aLhs, aRhs) <- checkPlusOperator env lhs rhs
+        typ <- getTyp aLhs
+        Ok (ETyped (EPlus aLhs aRhs) typ)
     EMinus lhs rhs           ->
       do
-        typ <- checkArithmeticOperator env lhs rhs
-        Ok (ETyped (ETimes (ETyped lhs typ) (ETyped rhs typ)) typ)
+        (aLhs, aRhs) <- checkArithmeticOperator env lhs rhs
+        typ <- getTyp aLhs
+        Ok (ETyped (EMinus aLhs aRhs) typ)
     ELt lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (ELt aLhs aRhs) Type_bool)
     EGt lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (EGt aLhs aRhs) Type_bool)
     ELtEq lhs rhs            ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (ELtEq aLhs aRhs) Type_bool)
     EGtEq lhs rhs            ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (EGtEq aLhs aRhs) Type_bool)
     EEq lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (EEq aLhs aRhs) Type_bool)
     ENEq lhs rhs             ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok (ETyped exp Type_bool)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        Ok (ETyped (ENEq aLhs aRhs) Type_bool)
     EAnd lhs rhs             ->
       do
-        checkExpTypesAreBool env lhs rhs
-        Ok (ETyped (EAnd (ETyped lhs Type_bool) (ETyped rhs Type_bool)) Type_bool)
+        (aLhs, aRhs) <- checkExpTypesAreBool env lhs rhs
+        Ok (ETyped (EAnd aLhs aRhs) Type_bool)
     EOr lhs rhs              ->
       do
-        checkExpTypesAreBool env lhs rhs
-        Ok (ETyped (EAnd (ETyped lhs Type_bool) (ETyped rhs Type_bool)) Type_bool)
+        (aLhs, aRhs) <- checkExpTypesAreBool env lhs rhs
+        Ok (ETyped (EAnd aLhs aRhs) Type_bool)
     EAss lhs rhs             ->
       do
-        typ <- checkExpTypeEquality env lhs rhs
-        Ok (ETyped (EAss (ETyped lhs typ) (ETyped rhs typ)) typ)
+        (aLhs, aRhs) <- checkExpTypeEquality env lhs rhs
+        typ <- getTyp aLhs
+        Ok (ETyped (EAss aLhs aRhs) typ)
     ETyped _ typ            -> Ok exp
 
--- TODO - need to return nested Exp as ETyped as well, use Err Exp and Err (Exp, Exp) as return type where Exp is a ETyped Exp Type
 -- checks if given expression is of given type
 checkExpType :: Env -> Exp -> Type -> Err Exp
 checkExpType env exp typ =
@@ -305,41 +313,41 @@ checkExpType env exp typ =
           Bad ("Type mismatch. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree isTyp)
     Bad s -> Bad s
 
--- checks if types of both given expressions are equal, returns type of expressions or error
-checkExpTypeEquality :: Env -> Exp -> Exp -> Err Type
+-- checks if types of both given expressions are equal, returns annotated expressions or error
+checkExpTypeEquality :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkExpTypeEquality env lhs rhs =
   do
     typ1 <- checkExp env lhs
     typ2 <- checkExp env rhs
     if (getTyp typ1 == getTyp typ2) then
-      getTyp typ1
+      Ok (typ1, typ2)
     else
       Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typ1 ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typ2)
 
--- checks if types of both given expressions are boolean, returns Type_bool or error
-checkExpTypesAreBool :: Env -> Exp -> Exp -> Err ()
+-- checks if types of both given expressions are boolean, returns both expressions annotated
+checkExpTypesAreBool :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkExpTypesAreBool env lhs rhs =
   do
     typ1 <- checkExp env lhs
     typ2 <- checkExp env rhs
     if (getTyp typ1 == Ok Type_bool && getTyp typ2 == Ok Type_bool) then
-      Ok ()
+      Ok (typ1, typ2)
     else
       Bad ("Types must be boolean in Conjuctions and Disjunctions")
 
 -- infer type of unary operator
-checkUnaryArithmeticOperator :: Env -> Exp -> Err Type
+checkUnaryArithmeticOperator :: Env -> Exp -> Err Exp
 checkUnaryArithmeticOperator env exp =
   do
     aExp <- checkExp env exp
     typ <- getTyp aExp
     if (typ == Type_int || typ == Type_double) then
-      Ok typ
+      Ok aExp
     else
       Bad ("Unary operators are only defined for int and double")
 
 -- infer type of arithmetic operator
-checkArithmeticOperator :: Env -> Exp -> Exp -> Err Type
+checkArithmeticOperator :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkArithmeticOperator env lhs rhs =
   do
     aExpLhs <- checkExp env lhs
@@ -347,12 +355,12 @@ checkArithmeticOperator env lhs rhs =
     if (lhsTyp == Type_int || lhsTyp == Type_double) then
       do
         aExpRhs <- checkExpType env rhs lhsTyp
-        getTyp aExpRhs
+        Ok (aExpLhs, aExpRhs)
     else
       Bad ("Arithmetic operator is only definded for types int and double")
 
 -- infer type of + operator
-checkPlusOperator :: Env -> Exp -> Exp -> Err Type
+checkPlusOperator :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkPlusOperator env lhs rhs =
   do
     aExpLhs <- checkExp env lhs
@@ -360,7 +368,7 @@ checkPlusOperator env lhs rhs =
     if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
       do
         aExpRhs <- checkExpType env rhs lhsTyp
-        getTyp aExpRhs
+        Ok (aExpLhs, aExpRhs)
     else
       Bad ("Arithmetic operator is only definded for types int and double")
 
