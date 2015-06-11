@@ -30,7 +30,7 @@ data Env = E {
 }
 initEnv :: Env
 initEnv = E {
-  nextTemp = "0",
+  nextTemp = "1",
   code = [],
   vars = [[]]
 }
@@ -42,6 +42,10 @@ getNextTemp = do
   let tmp = nextTemp env
   modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
   return tmp
+
+-- reset next temporary variable counter
+resetNextTemp :: State Env ()
+resetNextTemp = modify (\env -> env{nextTemp = "1"})
 
 -- Enter new scope
 enterScope :: State Env ()
@@ -103,8 +107,9 @@ codeGenDef (DFun typ id args stmts) = do
   emit (define typ id infos)
   mapM_ codeGenArg args
   codeGenStmts stmts
-  emit "}"
+  emit "}\n"
   exitScope
+  resetNextTemp
   return ()
 
 -- Generate code for function argument
@@ -154,7 +159,7 @@ define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(
 
 -- Create llvm instruction for allocation
 allocate :: LLVMType -> LLVMExpr -> Instruction
-allocate typ id = "%" ++ show id ++ " = alloca " ++ typ
+allocate typ id = "%" ++ id ++ " = alloca " ++ typ
 
 -- Create llvm instruction for store, source must include '%' sign if required
 store :: LLVMType -> LLVMExpr -> LLVMExpr -> Instruction
