@@ -149,12 +149,14 @@ checkDef gEnv def =
     DFun typ identifier args stmts ->
       do
         gEnv_ <- addParams gEnv identifier typ args
-        gEnv__ <- emit (define typ identifier args) gEnv_
-        gEnv___ <- emit "{" gEnv__
-        checkStmts gEnv___ stmts typ
-        gEnv____ <- emit "}" gEnv___
-        gEnv_____ <- remScope gEnv____
-        Ok gEnv_____
+        gEnv_ <- emit (define typ identifier args) gEnv_
+        gEnv_ <- emit "{" gEnv_
+        -- TODO - emit allocate for return value
+        gEnv_ <- foldM (\gEnv arg -> emitAllocParam arg gEnv) gEnv_ args
+        checkStmts gEnv_ stmts typ
+        gEnv_ <- emit "}" gEnv_
+        gEnv_ <- remScope gEnv_
+        Ok gEnv_
 
 checkStmts :: GEnv -> [ Stm ] -> Type -> Err GEnv
 checkStmts gEnv [] _ = Ok gEnv
@@ -171,11 +173,14 @@ checkStmt gEnv stmt typ =
         checkExp (env gEnv) exp
         Ok gEnv
     SDecls typ identifiers   ->
-      addVars gEnv identifiers typ
+      do
+        gEnv_ <- addVars gEnv identifiers typ
+        gEnv_ <- foldM (\gEnv decla -> emit (decl typ decla) gEnv) gEnv_ identifiers
+        Ok gEnv_
     SInit typ identifier exp ->
       do
         if (Ok typ == checkExp (env gEnv) exp) then
-          addVar gEnv identifier typ
+            addVar gEnv identifier typ
         else
           Bad ("Expression is of wrong type")
     SReturn exp              ->
@@ -329,11 +334,32 @@ checkExpTypesAreBool env lhs rhs =
 ------------------------------------------------------------------------------------------------------------------------------
 -- 							CodeGenerator methods
 ------------------------------------------------------------------------------------------------------------------------------
+emits :: [Instruction] -> GEnv -> Err GEnv
+emits instrs gEnv = foldM (\gEnv instr -> emit instr gEnv) gEnv instrs
+
 emit :: Instruction -> GEnv -> Err GEnv
 emit instr (E nextTmp code env) = Ok (E nextTmp (code ++ [instr]) env)
 
+emitAllocParam :: Arg -> GEnv -> Err GEnv
+emitAllocParam (ADecl typ id) gEnv =
+  do
+    let alloca = emitAlloc typ gEnv
+    emit (store typ id (snd alloca)) (fst alloca)
+
+emitAlloc :: Type -> GEnv -> (GEnv, Int)
+emitAlloc typ (E nextTemp instrs env_) =
+  do
+    let instrs_ = instrs ++ (["%" ++ show nextTemp ++ " = alloca " ++ getLLVMType typ])
+    ((E (nextTemp + 1) instrs_ env_), nextTemp)
+
+store :: Type -> Id -> Int -> Instruction
+store typ id i = "store " ++ getLLVMType typ ++ " %" ++ printTree id ++ ", " ++ getLLVMType typ ++ "* %" ++ show i
+
 define :: Type -> Id -> [Arg] -> Instruction
 define typ id args = "define " ++ (getLLVMType typ) ++ " @" ++ (printTree id) ++ " (" ++ compileArgs(args) ++ ") #0"
+
+decl :: Type -> Id -> Instruction
+decl typ id = "%" ++ (printTree id) ++ " = alloca " ++ getLLVMType typ
 
 compileArgs :: [Arg] -> String
 compileArgs [] = ""
