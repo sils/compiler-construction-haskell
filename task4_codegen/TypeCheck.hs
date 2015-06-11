@@ -378,6 +378,5 @@ getTyp :: Exp -> Err Type
 getTyp exp =
   case exp of
     ETyped _ typ -> Ok typ
-    -- should not be called for other exps'
-
+    _ -> Bad ("Method getTyp of TypeChecker shall only be called for ETyped Expressions")
 
