@@ -11,12 +11,10 @@ import ParCPP
 import SkelCPP
 import PrintCPP
 import AbsCPP
-import TypeChecker
-
-
-
-
 import ErrM
+import TypeChecker
+import CodeGenerator
+
 
 type ParseFun a = [Token] -> Err a
 
@@ -50,9 +48,14 @@ runTypeChecker v tree =
       exitFailure
     Ok aast -> do
       putStrLn "\nHell Yeah, your shit type checked"
-      showTree "Annotated Abstract Syntax" v aast
+      runCodeGenerator aast
       exitSuccess
 
+runCodeGenerator :: Program -> IO ()
+runCodeGenerator aast = do
+  let instrs = codeGen aast
+  putStrLn ""
+  mapM_ putStrLn instrs
 
 showTree :: (Show a, Print a) => String -> Int -> a -> IO ()
 showTree name v tree
