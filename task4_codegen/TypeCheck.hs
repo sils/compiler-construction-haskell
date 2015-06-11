@@ -222,6 +222,10 @@ checkStmt env stmt typ =
         else
           Bad ("Expression in if expressions must be of type boolean")
 
+-----------------------------------------------------------------------------------------------
+--Inference Methods
+-----------------------------------------------------------------------------------------------
+
 -- Infer type of expression
 checkExp :: Env -> Exp -> Err Exp
 checkExp env exp =
