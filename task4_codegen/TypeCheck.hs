@@ -24,12 +24,12 @@ emptyEnv = [([],[])]
 -- TypeCheck given program
 -- adds all function declarations to outer scope
 -- then typeChecks all functions
-typecheck :: Program -> Err ()
+typecheck :: Program -> Err Program
 typecheck (PDefs defs) =
   do
     env <- checkDecls emptyEnv defs
-    checkDefs env defs
-    Ok ()
+    (env, aDefs) <- checkDefs env defs
+    Ok (PDefs aDefs)
 
 ------------------------------------------------------------------------------
 --Environment Methods
@@ -207,7 +207,7 @@ checkStmt env stmt typ =
         env_ <- addScope env
         (env_, aStmts) <- checkStmts env_ stmts typ
         env_ <- remScope env_
-        Ok (env_, SBlock stmts)
+        Ok (env_, SBlock aStmts)
     SIfElse exp stmt1 stmt2  ->
       do
         env_ <- addScope env

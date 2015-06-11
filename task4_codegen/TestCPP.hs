@@ -38,21 +38,22 @@ run v p s = let ts = myLLexer s in case p ts of
                           putStrLn s
                           exitFailure
            Ok  tree -> do putStrLn "\nParse Successful!"
-                          showTree v tree
                           case typecheck tree of
                             Bad s -> do
-                                       putStrLn "\nFuck, Type check failed...\n"
+                                       putStrLn "\nFuck, Type check failed..."
+                                       showTree "Abstract Syntax" v tree
                                        putStrLn s
                                        exitFailure
-                            Ok _ -> do
-                                         putStrLn "\nHell Yeah, your shit type checked\n"
+                            Ok aast -> do
+                                         putStrLn "\nHell Yeah, your shit type checked"
+                                         showTree "Annotated Abstract Syntax" v aast
                                          exitSuccess
 
 
-showTree :: (Show a, Print a) => Int -> a -> IO ()
-showTree v tree
+showTree :: (Show a, Print a) => String -> Int -> a -> IO ()
+showTree name v tree
  = do
-      putStrV v $ "\n[Abstract Syntax]\n\n" ++ show tree
+      putStrV v $ "\n[" ++ name ++ "]\n\n" ++ show tree
       putStrV v $ "\n[Linearized tree]\n\n" ++ printTree tree
 
 main :: IO ()
