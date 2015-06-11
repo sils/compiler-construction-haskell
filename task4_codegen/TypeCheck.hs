@@ -7,20 +7,6 @@ import Control.Monad
 
 import Debug.Trace
 
--- Annotated abstract syntax tree
-data AAST = Program | Def | Arg | Stm | Exp
-
--- Data of TypeChecker, contains environment and the annotated abstract syntax tree
-data TypeCheckState = TCS {
-  env :: Env,
-  aast :: AAST
-}
-emptyTypeCheckState :: TypeCheckState
-emptyTypeCheckState = TCS {
-  env = emptyEnv,
-  aast = Program
-}
-
 type Fun = (Id, (Type, [Type]))
 type Var = (Id, Type)
 
@@ -41,8 +27,8 @@ emptyEnv = [([],[])]
 typecheck :: Program -> Err ()
 typecheck (PDefs defs) =
   do
-    tcs <- checkDecls emptyTypeCheckState defs
-    checkDefs tcs defs
+    env <- checkDecls emptyEnv defs
+    checkDefs env defs
 
 ------------------------------------------------------------------------------
 --Environment Methods
@@ -101,8 +87,7 @@ addParams env@(scope:rest) identifier typ args =
         -- enter function scope
         env_ <- addScope env
         -- add all argument variables to scope
-        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
-        Ok env__
+        foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
 
 -- Looks up a variable in the given environment.
 lookupVar :: Env -> Id -> Err Type
@@ -125,99 +110,92 @@ lookupFun (scope:rest) identifier =
 -------------------------------------------------------------------------------------
 
 -- Check a list of declarations
-checkDecls :: TypeCheckState -> [ Def ] -> Err TypeCheckState
-checkDecls tcs defs = foldM (\tcs def -> checkDecl tcs def) tcs defs
+checkDecls :: Env -> [ Def ] -> Err Env
+checkDecls env defs = foldM (\env def -> checkDecl env def) env defs
 
 -- Check a declaration for validity
-checkDecl :: TypeCheckState -> Def -> Err TypeCheckState
-checkDecl tcs def =
+checkDecl :: Env -> Def -> Err Env
+checkDecl env def =
   case def of
     DFun typ identifier args stmts -> do
-      env_ <- addFun (env tcs) identifier typ args
-      Ok (TCS env_ (aast tcs))
+      addFun env identifier typ args
 
 -------------------------------------------------------------------------------------
 --Methods for second run, Traverse AST and TypeCheck expressions
 -------------------------------------------------------------------------------------
 
 -- Check a list of definitions
-checkDefs :: TypeCheckState -> [ Def ] -> Err ()
-checkDefs tcs defs = foldM_ (\tcs def -> checkDef tcs def) tcs defs
+checkDefs :: Env -> [ Def ] -> Err ()
+-- TODO - return Err Program, Err (Env, Stm/Exp/..) in all other methods 
+checkDefs env defs = foldM_ (\env def -> checkDef env def) env defs
 
 -- Check definition
-checkDef :: TypeCheckState -> Def -> Err TypeCheckState
-checkDef tcs def =
+checkDef :: Env -> Def -> Err Env
+checkDef env def =
   case def of
     DFun typ identifier args stmts ->
       do
-        traceShow ("check method " ++ printTree identifier) (Ok ())
-        env_ <- addParams (env tcs) identifier typ args
-        tcs_ <- checkStmts (TCS env_ (aast tcs)) stmts typ
-        env__ <- remScope (env tcs_)
-        Ok (TCS env__ (aast tcs_))
+        env_ <- addParams env identifier typ args
+        env_ <- checkStmts env_ stmts typ
+        remScope env_
 
 -- check a list of statements
-checkStmts :: TypeCheckState -> [ Stm ] -> Type -> Err TypeCheckState
-checkStmts tcs stmts typ = foldM (\tcs stmt -> checkStmt tcs stmt typ) tcs stmts
+checkStmts :: Env -> [ Stm ] -> Type -> Err Env
+checkStmts env stmts typ = foldM (\env stmt -> checkStmt env stmt typ) env stmts
 
 -- check a statement for validity
-checkStmt :: TypeCheckState -> Stm -> Type -> Err TypeCheckState
-checkStmt tcs stmt typ =
+checkStmt :: Env -> Stm -> Type -> Err Env
+checkStmt env stmt typ =
   case stmt of
     SExp exp                 ->
       do
-        -- TODO - Add Annotated expressions to syntax tree
-        aExp <- checkExp (env tcs) exp
-        Ok tcs
+        -- TODO - Return Err (Exp, Env) and similar in all functions
+        aExp <- checkExp env exp
+        Ok env
     SDecls typ identifiers   ->
       do
-        env_ <- addVars (env tcs) identifiers typ
-        Ok (TCS env_ (aast tcs))
+        addVars env identifiers typ
     SInit typ identifier exp ->
       do
-        aExp <- checkExp (env tcs) exp
+        aExp <- checkExp env exp
         expTyp <- getTyp aExp
         if (expTyp == typ) then
           do
-            env_ <- addVar (env tcs) identifier expTyp
-            Ok (TCS env_ (aast tcs))
+            addVar env identifier expTyp
         else
           Bad ("Expression is of wrong type in initialization " ++ printTree stmt)
     SReturn exp              ->
       do
-        aExp <- checkExpType (env tcs) exp typ
-        Ok tcs
+        aExp <- checkExpType env exp typ
+        Ok env
     SReturnVoid              ->
-      Ok tcs
+      Ok env
     SWhile exp stmt          ->
       do
-        env_ <- addScope (env tcs)
+        env_ <- addScope env
         aExp <- checkExp env_ exp
         expTyp <- getTyp aExp
         if (expTyp == Type_bool) then
           do
-            tcs_ <- checkStmt (TCS env_ (aast tcs)) stmt typ
-            env__ <- remScope (env tcs_)
-            Ok (TCS env__ (aast tcs_))
+            env_ <- checkStmt env_ stmt typ
+            remScope env_
         else
           Bad ("Expression of while loops must be of type boolean")
     SBlock stmts             ->
       do
-        env_ <- addScope (env tcs)
-        tcs_ <- checkStmts (TCS env_ (aast tcs)) stmts typ
-        env__ <- remScope (env tcs_)
-        Ok (TCS env__ (aast tcs_))
+        env_ <- addScope env
+        env_ <- checkStmts env_ stmts typ
+        remScope env_
     SIfElse exp stmt1 stmt2  ->
       do
-        env_ <- addScope (env tcs)
+        env_ <- addScope env
         aExp <- checkExp env_ exp
         expTyp <- getTyp aExp
         if (expTyp == Type_bool) then
           do
-            tcs_ <- checkStmt (TCS env_ (aast tcs)) stmt1 typ
-            tcs__ <- checkStmt tcs_ stmt2 typ
-            env__ <- remScope (env tcs__)
-            Ok (TCS env__ (aast tcs__))
+            env_ <- checkStmt env_ stmt1 typ
+            env_ <- checkStmt env_ stmt2 typ
+            remScope env_
         else
           Bad ("Expression in if expressions must be of type boolean")
 
