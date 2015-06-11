@@ -38,16 +38,20 @@ run v p s = let ts = myLLexer s in case p ts of
                           putStrLn s
                           exitFailure
            Ok  tree -> do putStrLn "\nParse Successful!"
-                          case typecheck tree of
-                            Bad s -> do
-                                       putStrLn "\nFuck, Type check failed..."
-                                       showTree "Abstract Syntax" v tree
-                                       putStrLn s
-                                       exitFailure
-                            Ok aast -> do
-                                         putStrLn "\nHell Yeah, your shit type checked"
-                                         showTree "Annotated Abstract Syntax" v aast
-                                         exitSuccess
+                          runTypeChecker v tree
+
+runTypeChecker :: Verbosity -> Program -> IO ()
+runTypeChecker v tree = 
+  case typecheck tree of
+    Bad s -> do
+      putStrLn "\nFuck, Type check failed..."
+      showTree "Abstract Syntax" v tree
+      putStrLn s
+      exitFailure
+    Ok aast -> do
+      putStrLn "\nHell Yeah, your shit type checked"
+      showTree "Annotated Abstract Syntax" v aast
+      exitSuccess
 
 
 showTree :: (Show a, Print a) => String -> Int -> a -> IO ()
