@@ -125,8 +125,17 @@ getLLVMType typ = case typ of
   Type_void -> "void"
   Type_string -> error $ "Strings aren't supported."
 
--- Create llvm instruction for function definition - TODO - add arguments
+-- Create llvm instruction for function definition
 define :: Type -> Id -> [Arg] -> Instruction
-define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(" ++ ") {"
+define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(" ++ compileArgs args ++ ") {"
+
+-- Compile list of function arguments to string
+compileArgs :: [Arg] -> String
+compileArgs [] = ""
+compileArgs [a] = compileArg a
+compileArgs (a:as) = (compileArg a) ++ ("," ++ (compileArgs as))
+-- Compile function argument to string
+compileArg :: Arg -> String
+compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (printTree id)
 
 
