@@ -43,6 +43,19 @@ getNextTemp = do
   modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
   return tmp
 
+-- Enter new scope
+enterScope :: State Env ()
+enterScope = modify (\env -> env {vars = [] : vars env})
+
+-- Exit outermost scope
+exitScope :: State Env ()
+exitScope = modify (\env -> env {
+  vars = case vars env of {
+    (scope:rest) -> rest;
+    _            -> error $ "Can't exit non existent scope"
+  }
+})
+
 -- Add Variable to Environment
 addVar :: Id -> Type -> State Env ()
 addVar id typ = modify (\env -> env {
@@ -81,16 +94,26 @@ codeGenDefs defs = mapM_ codeGenDef defs
 
 -- Generate code for Definition
 codeGenDef :: Def -> State Env ()
--- TODO - define Function, allocate return type, allocate and store arguments, codeGenStmts
+-- TODO - allocate return type??
 codeGenDef (DFun typ id args stmts) = do
-  emit (define typ id args)
+  enterScope
+  -- add arguments to current sope
+  mapM_ (\(ADecl typ id) -> addVar id typ) args
+  infos <- mapM (\(ADecl _ id) -> lookupVar id) args
+  emit (define typ id infos)
   mapM_ codeGenArg args
+  codeGenStmts stmts
+  emit "}"
+  exitScope
   return ()
 
 -- Generate code for function argument
 codeGenArg :: Arg -> State Env ()
-codeGenArg (ADecl typ id) = do
-  -- TODO - emit allocate and store
+codeGenArg (ADecl _ id) = do
+  tmp <- getNextTemp
+  info <- lookupVar id
+  emit (allocate (typ info) tmp)
+  emit (store (typ info) ("%" ++ mangled info) tmp)
   return ()
 
 -- Generate code for Statements
@@ -126,16 +149,25 @@ getLLVMType typ = case typ of
   Type_string -> error $ "Strings aren't supported."
 
 -- Create llvm instruction for function definition
-define :: Type -> Id -> [Arg] -> Instruction
+define :: Type -> Id -> [VarInfo] -> Instruction
 define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(" ++ compileArgs args ++ ") {"
 
+-- Create llvm instruction for allocation
+allocate :: LLVMType -> LLVMExpr -> Instruction
+allocate typ id = "%" ++ show id ++ " = alloca " ++ typ
+
+-- Create llvm instruction for store, source must include '%' sign if required
+store :: LLVMType -> LLVMExpr -> LLVMExpr -> Instruction
+store typ source target = "store " ++ typ ++ " " ++ source ++ ", " ++ typ ++ "* %" ++ target
+
 -- Compile list of function arguments to string
-compileArgs :: [Arg] -> String
+compileArgs :: [VarInfo] -> String
 compileArgs [] = ""
 compileArgs [a] = compileArg a
-compileArgs (a:as) = (compileArg a) ++ ("," ++ (compileArgs as))
+compileArgs (a:as) = compileArg a ++ "," ++ compileArgs as
+
 -- Compile function argument to string
-compileArg :: Arg -> String
-compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (printTree id)
+compileArg :: VarInfo -> String
+compileArg info = typ info ++ " %" ++ mangled info
 
 
