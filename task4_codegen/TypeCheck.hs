@@ -5,8 +5,33 @@ import PrintCPP
 import ErrM
 import Control.Monad
 
+
+type VarInfo = (Type, Int)
+
+-- Id of Function with return type and types of arguments
 type Fun = (Id, (Type, [Type]))
-type Var = (Id, Type)
+-- Id of Variable with info about it's type and uses
+type Var = (Id, VarInfo)
+
+type Instruction = String
+
+-- CodegenEnvironment contains llvm code, id of next temporary variable and
+-- Environment of typeChecker
+data GEnv = E {
+  nextTmp :: Int,
+  code :: [Instruction],
+  env :: Env
+}
+emptyGEnv :: GEnv
+emptyGEnv = E {
+  nextTmp = 1,
+  code = [],
+  env = emptyEnv
+}
+
+-- update nextTmp property of CodegenEnvironment
+createNextTmp :: GEnv -> GEnv
+createNextTmp (E nextTmp code tEnv) = E (nextTmp + 1) code tEnv
 
 -- The environment is a list of *scopes*. Each scope holds a list of
 -- Identifiers and their associated types.
@@ -15,58 +40,58 @@ emptyEnv :: Env
 emptyEnv = [([],[])]
 
 -- Adds a variable to the uppermost scope of the given environment.
-addVar :: Env -> Id -> Type -> Err Env
-addVar [] _ _ = Bad ("Can't add a variable to environment without scopes")
-addVar (scope:rest) identifier typ =
+addVar :: GEnv -> Id -> Type -> Err GEnv
+addVar (E _ _ []) _ _ = Bad ("Can't add a variable to environment without scopes")
+addVar (E nextTemp code (scope:rest)) identifier typ =
   case lookup identifier (snd scope) of
-    Nothing -> Ok ((fst scope, (identifier, typ):(snd scope)):rest)
+    Nothing -> Ok (E nextTemp code ((fst scope, (identifier, (typ, 0)):(snd scope)):rest))
     Just _ -> Bad ("Variable " ++ printTree identifier ++ " was already declared.")
 
 -- Adds several variables with addVar
-addVars :: Env -> [Id] -> Type -> Err Env
-addVars env [] typ = Ok env
-addVars env (top:rest) typ =
+addVars :: GEnv -> [Id] -> Type -> Err GEnv
+addVars gEnv [] typ = Ok gEnv
+addVars gEnv (top:rest) typ =
   do
-    env_ <- addVar env top typ
-    addVars env_ rest typ
+    gEnv_ <- addVar gEnv top typ
+    addVars gEnv_ rest typ
 
 -- Adds a function definition to uppermost scope of the given environment
-addFun :: Env -> Id -> Type -> [ Arg ] -> Err Env
-addFun [] _ _ _ = Bad ("Can't add a function to environment without scopes")
-addFun env@(scope:rest) identifier typ args =
+addFun :: GEnv -> Id -> Type -> [ Arg ] -> Err GEnv
+addFun (E _ _ []) _ _ _ = Bad ("Can't add a function to environment without scopes")
+addFun gEnv@(E nextTmp code (scope:rest)) identifier typ args =
   case lookup identifier (fst scope) of
     Nothing ->
       do
         -- enter function scope
-        env_ <- addScope env
+        gEnv_ <- addScope gEnv
         -- add all argument variables to scope
-        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
+        gEnv__ <- foldM (\gEnv (ADecl typ identifier) -> addVar gEnv identifier typ) gEnv_ args
         -- create function signature
         let sig = (typ, map (\(ADecl typ identifier) -> typ) args)
         -- add function signature to outer scope
-        remScope ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
+        remScope (E nextTmp code ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) (env gEnv__)))
     Just _ -> Bad ("Function " ++ printTree identifier ++ " was already declared.")
 
-addParams :: Env -> Id -> Type -> [ Arg ] -> Err Env
-addParams [] _ _ _ = Bad ("Can't add a function params to environment without scopes")
-addParams env@(scope:rest) identifier typ args =
+addParams :: GEnv -> Id -> Type -> [ Arg ] -> Err GEnv
+addParams (E _ _ []) _ _ _ = Bad ("Can't add a function params to environment without scopes")
+addParams gEnv@(E nextTmp code (scope:rest)) identifier typ args =
   case lookup identifier (fst scope) of
     Nothing -> Bad ("Function " ++ printTree identifier ++ " was not declared.")
     Just _  ->
       do
         -- enter function scope
-        env_ <- addScope env
+        gEnv_ <- addScope gEnv
         -- add all argument variables to scope
-        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
-        Ok env__
+        gEnv__ <- foldM (\gEnv (ADecl typ identifier) -> addVar gEnv identifier typ) gEnv_ args
+        Ok gEnv__
 
 -- Looks up a variable in the given environment.
-lookupVar :: Env -> Id -> Err Type
+lookupVar :: Env -> Id -> Err VarInfo
 lookupVar [] identifier = Bad ("Unknown variable " ++ printTree identifier ++ ".")
 lookupVar (scope:rest) identifier =
   case lookup identifier (snd scope) of
     Nothing -> lookupVar rest identifier
-    Just typ -> Ok typ
+    Just info -> Ok info
 
 -- Looks up a function in the given environment
 lookupFun :: Env -> Id -> Err (Type, [Type])
@@ -77,105 +102,116 @@ lookupFun (scope:rest) identifier =
     Just sig -> Ok sig
 
 -- Adds a new empty scope to the environment.
-addScope :: Env -> Err Env
-addScope env = Ok (([],[]):env)
+addScope :: GEnv -> Err GEnv
+addScope (E nextTmp code env) = Ok (E nextTmp code (([],[]):env))
 
-remScope :: Env -> Err Env
-remScope [] = Bad []
-remScope (scope:rest) = Ok rest
+remScope :: GEnv -> Err GEnv
+remScope (E _ _ []) = Bad "Can't remove scope from environment without scopes"
+remScope (E nextTmp code (scope:rest)) = Ok (E nextTmp code rest)
 
 
-typecheck :: Program -> Err ()
+typecheck :: Program -> Err [Instruction]
 typecheck (PDefs defs) =
   do
-    env <- checkDecls emptyEnv defs
-    checkDefs env defs
+    gEnv <- checkDecls emptyGEnv defs
+    gEnv_ <- checkDefs gEnv defs
+    Ok (code gEnv_)
 
 
-checkDecls :: Env -> [ Def ] -> Err Env
-checkDecls env [] = Ok env
-checkDecls env (def:defs) =
+checkDecls :: GEnv -> [ Def ] -> Err GEnv
+checkDecls gEnv [] = Ok gEnv
+checkDecls gEnv (def:defs) =
   do
     -- Why monad needed?
-    env_ <- checkDecl env def
-    checkDecls env_ defs
+    gEnv_ <- checkDecl gEnv def
+    checkDecls gEnv_ defs
 
-checkDecl :: Env -> Def -> Err Env
-checkDecl env def =
+checkDecl :: GEnv -> Def -> Err GEnv
+checkDecl gEnv def =
   case def of
-    DFun typ identifier args stmts -> addFun env identifier typ args
+    DFun typ identifier args stmts -> addFun gEnv identifier typ args
 
-checkDefs :: Env -> [ Def ] -> Err ()
-checkDefs env [] = Ok ()
-checkDefs env (def:defs) =
+checkDefs :: GEnv -> [ Def ] -> Err GEnv
+checkDefs gEnv [] = Ok emptyGEnv
+checkDefs gEnv [def] = checkDef gEnv def
+checkDefs gEnv (def:defs) =
   do
     -- Why monad needed?
-    env_ <- checkDef env def
-    checkDefs env_ defs
+    gEnv_ <- checkDef gEnv def
+    gEnv__ <- checkDefs gEnv_ defs
+    Ok gEnv__
 
 
-checkDef :: Env -> Def -> Err Env
-checkDef env def =
+checkDef :: GEnv -> Def -> Err GEnv
+checkDef gEnv def =
   case def of
     -- TODO ask: why do we only use env from addParams and never err?
     DFun typ identifier args stmts ->
       do
-        env_ <- addParams env identifier typ args
-        checkStmts env_ stmts typ
-        env__ <- remScope env_
-        Ok env__
+        gEnv_ <- addParams gEnv identifier typ args
+        gEnv_ <- emit (define typ identifier args) gEnv_
+        gEnv_ <- emit "{" gEnv_
+        -- TODO - emit allocate for return value
+        gEnv_ <- foldM (\gEnv arg -> emitAllocParam arg gEnv) gEnv_ args
+        checkStmts gEnv_ stmts typ
+        gEnv_ <- emit "}" gEnv_
+        gEnv_ <- remScope gEnv_
+        Ok gEnv_
 
-checkStmts :: Env -> [ Stm ] -> Type -> Err Env
-checkStmts env [] _ = Ok env
-checkStmts env (stmt:stmts) typ =
+checkStmts :: GEnv -> [ Stm ] -> Type -> Err GEnv
+checkStmts gEnv [] _ = Ok gEnv
+checkStmts gEnv (stmt:stmts) typ =
   do
-    env_ <- checkStmt env stmt typ
-    checkStmts env_ stmts typ
+    gEnv_ <- checkStmt gEnv stmt typ
+    checkStmts gEnv_ stmts typ
 
-checkStmt :: Env -> Stm -> Type -> Err Env
-checkStmt env stmt typ =
+checkStmt :: GEnv -> Stm -> Type -> Err GEnv
+checkStmt gEnv stmt typ =
   case stmt of
     SExp exp                 ->
       do
-        checkExp env exp
-        Ok env
+        checkExp (env gEnv) exp
+        Ok gEnv
     SDecls typ identifiers   ->
-      addVars env identifiers typ
+      do
+        gEnv_ <- addVars gEnv identifiers typ
+        gEnv_ <- foldM (\gEnv decla -> emit (decl typ decla) gEnv) gEnv_ identifiers
+        Ok gEnv_
     SInit typ identifier exp ->
       do
-        if (Ok typ == checkExp env exp) then
-          addVar env identifier typ
+        if (Ok typ == checkExp (env gEnv) exp) then
+            addVar gEnv identifier typ
         else
           Bad ("Expression is of wrong type")
     SReturn exp              ->
       do
-        checkExpType env exp typ
-        Ok env
+        checkExpType (env gEnv) exp typ
+        Ok gEnv
     SReturnVoid              ->
-      Ok env
+      Ok gEnv
     SWhile exp stmt          ->
       do
-        env_ <- addScope env
+        gEnv_ <- addScope gEnv
         -- Expressions cannot change environment
-        if (checkExp env_ exp == Ok Type_bool) then
+        if (checkExp (env gEnv_) exp == Ok Type_bool) then
           do
-            checkStmt env_ stmt typ
-            Ok env
+            checkStmt gEnv_ stmt typ
+            Ok gEnv
         else
           Bad ("Expression of while loops must be of type boolean")
     SBlock stmts             ->
       do
-        env_ <- addScope env
-        checkStmts env_ stmts typ
-        Ok env
+        gEnv_ <- addScope gEnv
+        checkStmts gEnv_ stmts typ
+        Ok gEnv
     SIfElse exp stmt1 stmt2  ->
       do
-        env_ <- addScope env
-        if (checkExp env_ exp == Ok Type_bool) then
+        gEnv_ <- addScope gEnv
+        if (checkExp (env gEnv_) exp == Ok Type_bool) then
           do
-            checkStmt env_ stmt1 typ
-            checkStmt env_ stmt2 typ
-            Ok env
+            checkStmt gEnv_ stmt1 typ
+            checkStmt gEnv_ stmt2 typ
+            Ok gEnv
         else
           Bad ("Expression in if expressions must be of type boolean")
 
@@ -187,7 +223,10 @@ checkExp env exp =
     EInt _                   -> Ok Type_int
     EDouble _                -> Ok Type_double
     EString _                -> Ok Type_string
-    EId id                   -> lookupVar env id
+    EId id                   ->
+      case lookupVar env id of
+        Bad s -> Bad s
+        Ok (typ, _) -> Ok typ
     EApp id exprs            -> 
       do
         (retType, types) <- lookupFun env id
@@ -292,5 +331,50 @@ checkExpTypesAreBool env lhs rhs =
       else
         Bad ("Types must be boolean in Conjuctions and Disjunctions")
 
+------------------------------------------------------------------------------------------------------------------------------
+-- 							CodeGenerator methods
+------------------------------------------------------------------------------------------------------------------------------
+emits :: [Instruction] -> GEnv -> Err GEnv
+emits instrs gEnv = foldM (\gEnv instr -> emit instr gEnv) gEnv instrs
 
+emit :: Instruction -> GEnv -> Err GEnv
+emit instr (E nextTmp code env) = Ok (E nextTmp (code ++ [instr]) env)
+
+emitAllocParam :: Arg -> GEnv -> Err GEnv
+emitAllocParam (ADecl typ id) gEnv =
+  do
+    let alloca = emitAlloc typ gEnv
+    emit (store typ id (snd alloca)) (fst alloca)
+
+emitAlloc :: Type -> GEnv -> (GEnv, Int)
+emitAlloc typ (E nextTemp instrs env_) =
+  do
+    let instrs_ = instrs ++ (["%" ++ show nextTemp ++ " = alloca " ++ getLLVMType typ])
+    ((E (nextTemp + 1) instrs_ env_), nextTemp)
+
+store :: Type -> Id -> Int -> Instruction
+store typ id i = "store " ++ getLLVMType typ ++ " %" ++ printTree id ++ ", " ++ getLLVMType typ ++ "* %" ++ show i
+
+define :: Type -> Id -> [Arg] -> Instruction
+define typ id args = "define " ++ (getLLVMType typ) ++ " @" ++ (printTree id) ++ " (" ++ compileArgs(args) ++ ") #0"
+
+decl :: Type -> Id -> Instruction
+decl typ id = "%" ++ (printTree id) ++ " = alloca " ++ getLLVMType typ
+
+compileArgs :: [Arg] -> String
+compileArgs [] = ""
+compileArgs [a] = compileArg a
+compileArgs (a:as) = (compileArg a) ++ ("," ++ (compileArgs as))
+
+compileArg :: Arg -> String
+compileArg (ADecl typ id) = (getLLVMType typ) ++ " %" ++ (printTree id)
+
+getLLVMType :: Type -> String
+getLLVMType typ =
+  case typ of
+    Type_void -> "void"
+    Type_bool -> "i1"
+    Type_int -> "i32"
+    Type_double -> "f64"
+ -- Type_string -> not supported
 
