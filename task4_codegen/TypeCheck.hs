@@ -29,6 +29,7 @@ typecheck (PDefs defs) =
   do
     env <- checkDecls emptyEnv defs
     checkDefs env defs
+    Ok ()
 
 ------------------------------------------------------------------------------
 --Environment Methods
@@ -125,51 +126,70 @@ checkDecl env def =
 -------------------------------------------------------------------------------------
 
 -- Check a list of definitions
-checkDefs :: Env -> [ Def ] -> Err ()
--- TODO - return Err Program, Err (Env, Stm/Exp/..) in all other methods 
-checkDefs env defs = foldM_ (\env def -> checkDef env def) env defs
+checkDefs :: Env -> [ Def ] -> Err (Env, [Def])
+checkDefs env [] = Ok (env, [])
+checkDefs env [def] =
+  do
+    (env_, aDef) <- checkDef env def
+    Ok (env_, [aDef])
+checkDefs env (def:defs) =
+  do
+    (env_, aDef) <- checkDef env def
+    (env_, aDefs) <- checkDefs env_ defs
+    Ok (env_, aDef : aDefs)
 
 -- Check definition
-checkDef :: Env -> Def -> Err Env
+checkDef :: Env -> Def -> Err (Env, Def)
 checkDef env def =
   case def of
     DFun typ identifier args stmts ->
       do
         env_ <- addParams env identifier typ args
-        env_ <- checkStmts env_ stmts typ
-        remScope env_
+        (env_, aStmts) <- checkStmts env_ stmts typ
+        env_ <- remScope env_
+        Ok (env_, DFun typ identifier args aStmts)
 
 -- check a list of statements
-checkStmts :: Env -> [ Stm ] -> Type -> Err Env
-checkStmts env stmts typ = foldM (\env stmt -> checkStmt env stmt typ) env stmts
+checkStmts :: Env -> [ Stm ] -> Type -> Err (Env, [Stm])
+checkStmts env [] typ = Ok (env, [])
+checkStmts env [stmt] typ =
+  do
+    (env_, aStmt) <-checkStmt env stmt typ
+    Ok (env_, [aStmt])
+checkStmts env (stmt:stmts) typ =
+  do
+    (env_, aStmt) <- checkStmt env stmt typ
+    (env_, aStmts) <- checkStmts env_ stmts typ
+    Ok (env_, aStmt : aStmts)
 
 -- check a statement for validity
-checkStmt :: Env -> Stm -> Type -> Err Env
+checkStmt :: Env -> Stm -> Type -> Err (Env, Stm)
 checkStmt env stmt typ =
   case stmt of
     SExp exp                 ->
       do
-        -- TODO - Return Err (Exp, Env) and similar in all functions
         aExp <- checkExp env exp
-        Ok env
+        Ok (env, SExp aExp)
     SDecls typ identifiers   ->
       do
-        addVars env identifiers typ
+        env_ <- addVars env identifiers typ
+        Ok (env_, stmt)
     SInit typ identifier exp ->
       do
         aExp <- checkExp env exp
         expTyp <- getTyp aExp
         if (expTyp == typ) then
           do
-            addVar env identifier expTyp
+            env_ <- addVar env identifier expTyp
+            Ok (env_, SInit typ identifier aExp)
         else
           Bad ("Expression is of wrong type in initialization " ++ printTree stmt)
     SReturn exp              ->
       do
         aExp <- checkExpType env exp typ
-        Ok env
+        Ok (env, SReturn aExp)
     SReturnVoid              ->
-      Ok env
+      Ok (env, stmt)
     SWhile exp stmt          ->
       do
         env_ <- addScope env
@@ -177,15 +197,17 @@ checkStmt env stmt typ =
         expTyp <- getTyp aExp
         if (expTyp == Type_bool) then
           do
-            env_ <- checkStmt env_ stmt typ
-            remScope env_
+            (env_, aStmt) <- checkStmt env_ stmt typ
+            env_ <- remScope env_
+            Ok (env_, SWhile aExp aStmt)
         else
           Bad ("Expression of while loops must be of type boolean")
     SBlock stmts             ->
       do
         env_ <- addScope env
-        env_ <- checkStmts env_ stmts typ
-        remScope env_
+        (env_, aStmts) <- checkStmts env_ stmts typ
+        env_ <- remScope env_
+        Ok (env_, SBlock stmts)
     SIfElse exp stmt1 stmt2  ->
       do
         env_ <- addScope env
@@ -193,9 +215,10 @@ checkStmt env stmt typ =
         expTyp <- getTyp aExp
         if (expTyp == Type_bool) then
           do
-            env_ <- checkStmt env_ stmt1 typ
-            env_ <- checkStmt env_ stmt2 typ
-            remScope env_
+            (env_, aStmt1) <- checkStmt env_ stmt1 typ
+            (env_, aStmt2) <- checkStmt env_ stmt2 typ
+            env_ <- remScope env_
+            Ok (env_, SIfElse aExp aStmt1 aStmt2)
         else
           Bad ("Expression in if expressions must be of type boolean")
 
