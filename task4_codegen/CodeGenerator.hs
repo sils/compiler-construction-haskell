@@ -37,12 +37,11 @@ initEnv = E {
 
 -- get Identifier of next temporary variable, updates nextTemp in environment
 getNextTemp :: State Env LLVMExpr
-getNextTemp =
-  do
-    env <- get
-    let tmp = nextTemp env
-    modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
-    return tmp
+getNextTemp = do
+  env <- get
+  let tmp = nextTemp env
+  modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
+  return tmp
 
 -- Add Variable to Environment
 addVar :: Id -> Type -> State Env ()
@@ -83,7 +82,16 @@ codeGenDefs defs = mapM_ codeGenDef defs
 -- Generate code for Definition
 codeGenDef :: Def -> State Env ()
 -- TODO - define Function, allocate return type, allocate and store arguments, codeGenStmts
-codeGenDef (DFun typ id args stmts) = return ()
+codeGenDef (DFun typ id args stmts) = do
+  emit (define typ id args)
+  mapM_ codeGenArg args
+  return ()
+
+-- Generate code for function argument
+codeGenArg :: Arg -> State Env ()
+codeGenArg (ADecl typ id) = do
+  -- TODO - emit allocate and store
+  return ()
 
 -- Generate code for Statements
 codeGenStmts :: [Stm] -> State Env ()
@@ -116,4 +124,9 @@ getLLVMType typ = case typ of
   Type_double -> "f64"
   Type_void -> "void"
   Type_string -> error $ "Strings aren't supported."
+
+-- Create llvm instruction for function definition - TODO - add arguments
+define :: Type -> Id -> [Arg] -> Instruction
+define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(" ++ ") {"
+
 
