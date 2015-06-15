@@ -145,7 +145,7 @@ codeGenStmt stm rettyp =
         varinfo <- addVar identifier typ
         emit (allocate (getLLVMType typ) (mangled varinfo))
         (tmp,_) <- codeGenExpr exp
-        emit (store (getLLVMType typ) tmp (mangled varinfo))
+        emit (store (getLLVMType typ) ("%"++tmp) (mangled varinfo))
     SReturn exp              ->
       do
         (tmp,_) <- codeGenExpr exp
@@ -230,7 +230,12 @@ codeGenExpr expr =
     ENEq lhs rhs             -> return ("", "")
     EAnd lhs rhs             -> return ("", "")
     EOr lhs rhs              -> return ("", "")
-    EAss lhs rhs             -> return ("", "")
+    EAss (ETyped (EId lhsid) _) rhs             ->
+      do
+        (rhs, rhtype) <- codeGenExpr rhs
+        varinfo <- lookupVar lhsid
+        emit (store rhtype ("%"++rhs) (mangled varinfo))
+        return ((mangled varinfo), (typ varinfo))
     ETyped exp typ           -> codeGenExpr exp
 
 
