@@ -164,7 +164,12 @@ codeGenStmt stm rettyp =
 codeGenExpr :: Exp -> State Env LLVMExpr
 codeGenExpr expr =
   case expr of
-    ETrue                    -> return ""
+    ETrue                    ->
+      do
+        id <- getNextTemp
+        emit (allocate "i1" id)
+        emit (store "i1" "1" id)
+        return id
     EFalse                   -> return ""
     EInt _                   -> return ""
     EDouble _                -> return ""
@@ -188,7 +193,7 @@ codeGenExpr expr =
     EAnd lhs rhs             -> return ""
     EOr lhs rhs              -> return ""
     EAss lhs rhs             -> return ""
-    ETyped _ typ             -> return ""
+    ETyped exp typ           -> codeGenExpr exp
 
 
 -------------------------------------------------------------------------------------------------
