@@ -309,12 +309,15 @@ codeGenExpr expr =
     ENEq lhs rhs             -> genCmpExpr "ne" lhs rhs
     EAnd lhs rhs             -> genBinExpr "and" lhs rhs
     EOr lhs rhs              -> genBinExpr "or" lhs rhs
-    EAss (ETyped (EId lhsid) _) rhs ->
-      do
-        (rhs, rhtype) <- codeGenExpr rhs
-        varinfo <- lookupVar lhsid
-        emit (store rhtype rhs (getMangled varinfo))
-        return ((getMangled varinfo), (typ varinfo))
+    EAss lhs rhs ->
+      case lhs of
+        ETyped content typ -> codeGenExpr (EAss content rhs)
+        EId lhsid ->
+          do
+            (rhs, rhtype) <- codeGenExpr rhs
+            varinfo <- lookupVar lhsid
+            emit (store rhtype rhs (getMangled varinfo))
+            return ((getMangled varinfo), (typ varinfo))
     ETyped exp typ           -> codeGenExpr exp
 
 
