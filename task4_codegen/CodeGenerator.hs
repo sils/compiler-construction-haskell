@@ -170,7 +170,12 @@ codeGenExpr expr =
         emit (allocate "i1" id)
         emit (store "i1" "1" id)
         return id
-    EFalse                   -> return ""
+    EFalse                   ->
+      do
+        id <- getNextTemp
+        emit (allocate "i1" id)
+        emit (store "i1" "0" id)
+        return id
     EInt _                   -> return ""
     EDouble _                -> return ""
     EString _                -> return ""
