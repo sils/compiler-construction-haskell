@@ -28,12 +28,14 @@ getMangled varinfo = ("%"++(mangled varinfo))
 -- Environment, nextTemp identifier, code, vars and functions
 data Env = E {
   nextTemp :: LLVMExpr,
+  nextLabel :: LLVMExpr,
   code :: [Instruction],
   vars :: [[(Id, VarInfo)]]
 }
 initEnv :: Env
 initEnv = E {
   nextTemp = "1",
+  nextLabel = "1",
   code = [],
   vars = [[]]
 }
@@ -49,8 +51,8 @@ getNextTemp = do
 getNextLabel :: State Env LLVMExpr
 getNextLabel = do
   env <- get
-  let tmp = nextTemp env
-  modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
+  let tmp = nextLabel env
+  modify (\env -> env {nextLabel = show (read (nextLabel env) + 1)})
   return ("l"++tmp)
 
 -- reset next temporary variable counter
@@ -170,6 +172,7 @@ codeGenStmt stm rettyp =
         cond_label <- getNextLabel
         body_label <- getNextLabel
         finally_label <- getNextLabel
+        genJump cond_label
 
         genLabel cond_label
         (tmp, typ) <- codeGenExpr exp
