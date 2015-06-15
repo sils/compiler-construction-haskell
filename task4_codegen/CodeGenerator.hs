@@ -19,7 +19,7 @@ data VarInfo = VI {
 -- Function information: Name and return type
 data FunInfo = FI {
   mangledF :: LLVMExpr,
-  retType :: LLVMType
+  retTyp :: LLVMType
 }
 
 getMangled :: VarInfo -> LLVMExpr
@@ -282,7 +282,13 @@ codeGenExpr expr =
         tmp <- getNextTemp
         emit (tmp ++ " = load " ++ (typ varinfo) ++ "* " ++ getMangled varinfo)
         return (tmp, (typ varinfo))
-    EApp id exprs            -> return ("", "")
+    EApp id exprs            ->
+      do
+        funInfo <- lookupFun id
+        tmps <- mapM codeGenExpr exprs
+        tmp <- getNextTemp
+        emit (tmp ++ " = call " ++ retTyp funInfo ++ " @" ++ mangledF funInfo ++ "(" ++ printArgs tmps ++ ")")
+        return (tmp, (retTyp funInfo))
     EPIncr exp               -> return ("", "")
     EPDecr exp               -> return ("", "")
     EIncr exp                -> return ("", "")
@@ -382,4 +388,12 @@ compileArgs (a:as) = compileArg a ++ "," ++ compileArgs as
 compileArg :: VarInfo -> String
 compileArg info = typ info ++ " " ++ getMangled info
 
+-- print list of arguments for function call
+printArgs :: [(LLVMExpr, LLVMType)] -> String
+printArgs [] = ""
+printArgs [info] = printArg info
+printArgs (info:infos) = printArg info ++ ", " ++ printArgs infos
+-- print argument for function call
+printArg :: (LLVMExpr, LLVMType) -> String
+printArg (id, typ) = typ ++ " " ++ id
 
