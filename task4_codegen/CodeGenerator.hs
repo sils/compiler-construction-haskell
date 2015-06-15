@@ -221,7 +221,7 @@ codeGenExpr expr =
     ENEq lhs rhs             -> return ("", "")
     EAnd lhs rhs             -> return ("", "")
     EOr lhs rhs              -> return ("", "")
-    EAss (ETyped (EId lhsid) _) rhs             ->
+    EAss (ETyped (EId lhsid) _) rhs ->
       do
         (rhs, rhtype) <- codeGenExpr rhs
         varinfo <- lookupVar lhsid
