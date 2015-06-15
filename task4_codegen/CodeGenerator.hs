@@ -125,6 +125,10 @@ codeGenArg (ADecl _ id) = do
   info <- lookupVar id
   emit (allocate (typ info) tmp)
   emit (store (typ info) (getMangled info) tmp)
+  modify (\env -> env {vars = case vars env of 
+    (scope:rest) -> ((id, VI (tail tmp) (typ info) 0) : scope) : rest
+    _            -> [[(id, VI (tail tmp) (typ info) 0)]]
+  })
   return ()
 
 -- Generate code for Statements
