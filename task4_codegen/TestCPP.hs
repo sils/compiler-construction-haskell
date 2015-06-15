@@ -54,6 +54,8 @@ runTypeChecker v tree =
 runCodeGenerator :: Program -> IO ()
 runCodeGenerator aast = do
   let instrs = codeGen aast
+  let instrs_ = unlines instrs
+  writeFile "TestOutput.ll" instrs_
   putStrLn ""
   mapM_ putStrLn instrs
 
