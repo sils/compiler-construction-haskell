@@ -185,9 +185,9 @@ codeGenExpr expr =
     EDouble value            ->
       do
         id <- getNextTemp
-        emit (allocate "f64" id)
-        emit (store "f64" (show value) id)
-        return (id, "f64")
+        emit (allocate "double" id)
+        emit (store "double" (show value) id)
+        return (id, "double")
     EString _                -> return ("", "")
     EId id                   ->
       do
@@ -253,7 +253,7 @@ getLLVMType :: Type -> LLVMType
 getLLVMType typ = case typ of
   Type_bool -> "i1"
   Type_int -> "i32"
-  Type_double -> "f64"
+  Type_double -> "double"
   Type_void -> "void"
   Type_string -> error $ "Strings aren't supported."
 
