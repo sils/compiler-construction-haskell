@@ -132,7 +132,10 @@ codeGenStmts stmts typ = mapM_ (\stmt -> (codeGenStmt stmt typ)) stmts
 codeGenStmt :: Stm -> Type -> State Env ()
 codeGenStmt stm rettyp =
   case stm of
-    SExp exp                 -> return ()
+    SExp exp                 ->
+      do
+        codeGenExpr exp
+        return ()
     SDecls typ identifiers   ->
       do
         varInfos <- mapM (\id -> addVar id typ) identifiers
