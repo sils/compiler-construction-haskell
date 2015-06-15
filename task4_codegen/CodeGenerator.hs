@@ -289,10 +289,22 @@ codeGenExpr expr =
         tmp <- getNextTemp
         emit (tmp ++ " = call " ++ retTyp funInfo ++ " @" ++ mangledF funInfo ++ "(" ++ printArgs tmps ++ ")")
         return (tmp, (retTyp funInfo))
-    EPIncr exp               -> return ("", "")
-    EPDecr exp               -> return ("", "")
-    EIncr exp                -> return ("", "")
-    EDecr exp                -> return ("", "")
+    EPIncr exp               ->
+      do
+        emit ("; PostIncrement not supported")
+        return ("", "")
+    EPDecr exp               ->
+      do
+        emit ("; PostDecrement not supported")
+        return ("", "")
+    EIncr exp                ->
+      do
+        emit ("; PreIncrement not supported")
+        return ("", "")
+    EDecr exp                ->
+      do
+        emit ("; PreDecrement not supported")
+        return ("", "")
     ETimes lhs rhs           -> genBinOpExpr lhs rhs [("i32","mul"), ("double", "fmul")]
     EDiv lhs rhs             -> genBinOpExpr lhs rhs [("i32","sdiv"), ("double", "fdiv")]
     EPlus lhs rhs            -> genBinOpExpr lhs rhs [("i32","add"), ("double", "fadd")]
