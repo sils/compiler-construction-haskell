@@ -179,7 +179,12 @@ codeGenExpr expr =
     EInt _                   -> return ""
     EDouble _                -> return ""
     EString _                -> return ""
-    EId id                   -> return ""
+    EId id                   ->
+      do
+        varinfo <- lookupVar id
+        tmp <- getNextTemp
+        emit ("%" ++ tmp ++ " = load " ++ (typ varinfo) ++ "* %" ++ mangled varinfo)
+        return tmp
     EApp id exprs            -> return ""
     EPIncr exp               -> return ""
     EPDecr exp               -> return ""
