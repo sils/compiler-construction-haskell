@@ -273,7 +273,7 @@ genCmpExpr cond lhs rhs =
                       else
                         return " = fcmp ") typ
     tmp <- getNextTemp
-    emit (tmp++instr++typ++" "++lhs++", "++rhs)
+    emit (tmp++instr++cond++" "++typ++" "++lhs++", "++rhs)
     return (tmp, typ)
 
 genBinExpr :: LLVMExpr -> Exp -> Exp -> State Env (LLVMExpr, LLVMType)
