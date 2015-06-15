@@ -195,7 +195,16 @@ codeGenExpr expr =
     EPDecr exp               -> return ("", "")
     EIncr exp                -> return ("", "")
     EDecr exp                -> return ("", "")
-    ETimes lhs rhs           -> return ("", "")
+    ETimes lhs rhs           ->
+      do
+        (lhs, lhsType) <- codeGenExpr lhs
+        (rhs, rhsType) <- codeGenExpr rhs
+        tmp <- getNextTemp
+        if (lhsType == "i32") then
+          emit (tmp ++ " = mul " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
+        else
+          emit (tmp ++ " = fmul " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
+        return (tmp, lhsType)
     EDiv lhs rhs             -> return ("", "")
     EPlus lhs rhs            ->
       do
