@@ -61,13 +61,16 @@ exitScope = modify (\env -> env {
 })
 
 -- Add Variable to Environment
-addVar :: Id -> Type -> State Env ()
-addVar id typ = modify (\env -> env {
-  vars = case vars env of {
-    (scope:rest) -> ((id, VI (mangleName id) (getLLVMType typ) 0) : scope) : rest;
-    _            -> [[(id, VI (mangleName id) (getLLVMType typ) 0)]]
-  }
-})
+addVar :: Id -> Type -> State Env VarInfo
+addVar id typ =
+  do
+    let varinfo = VI (mangleName id) (getLLVMType typ) 0
+    modify (\env -> env {
+    vars = case vars env of
+      (scope:rest) -> ((id, varinfo) : scope) : rest;
+      _            -> [[(id, varinfo)]]
+    })
+    return varinfo
 
 -- Lookup given variable and return it's info
 lookupVar :: Id -> State Env VarInfo
@@ -131,8 +134,9 @@ codeGenStmt stm =
   case stm of
     SExp exp                 -> return ()
     SDecls typ identifiers   ->
-      mapM_ (\id -> emit (allocate (getLLVMType typ) (mangleName id))) identifiers
-      -- TODO add vars to scope
+      do
+        varInfos <- mapM (\id -> addVar id typ) identifiers
+        mapM_ (\varInfo -> emit (allocate (getLLVMType typ) (mangled varInfo))) varInfos
     SInit typ identifier exp -> return ()
     SReturn exp              -> return ()
     SReturnVoid              -> emit "ret void"
