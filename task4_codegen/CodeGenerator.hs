@@ -127,8 +127,17 @@ codeGenStmts stmts = mapM_ codeGenStmt stmts
 
 -- Generate code for Statement
 codeGenStmt :: Stm -> State Env ()
--- TODO - Pattern match stm
-codeGenStmt stm = return ()
+codeGenStmt stm =
+  case stm of
+    SExp exp                 -> return ()
+    SDecls typ identifiers   -> return ()
+    SInit typ identifier exp -> return ()
+    SReturn exp              -> return ()
+    SReturnVoid              -> emit "ret void"
+    SWhile exp stmt          -> return ()
+    SBlock stmts             -> return ()
+    SIfElse exp stmt1 stmt2  -> return ()
+
 
 -- Generate code for Expression
 codeGenExpr :: Exp -> State Env LLVMExpr
