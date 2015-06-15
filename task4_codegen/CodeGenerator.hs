@@ -135,7 +135,11 @@ codeGenStmt stm =
     SReturn exp              -> return ()
     SReturnVoid              -> emit "ret void"
     SWhile exp stmt          -> return ()
-    SBlock stmts             -> return ()
+    SBlock stmts             ->
+      do
+        enterScope
+        codeGenStmts stmts
+        exitScope
     SIfElse exp stmt1 stmt2  -> return ()
 
 
