@@ -11,11 +11,15 @@ type LLVMExpr = String
 type Instruction = String
 -- Type for llvm types
 type LLVMType = String
--- Variable information: Name, typ and number of uses (for loads from stack)
+-- Variable information: Name and typ
 data VarInfo = VI {
   mangled :: LLVMExpr,
-  typ :: LLVMType,
-  uses :: Int
+  typ :: LLVMType
+}
+-- Function information: Name and return type
+data FunInfo = FI {
+  mangledF :: LLVMExpr,
+  retType :: LLVMType
 }
 
 getMangled :: VarInfo -> LLVMExpr
@@ -30,14 +34,16 @@ data Env = E {
   nextTemp :: LLVMExpr,
   nextLabel :: LLVMExpr,
   code :: [Instruction],
-  vars :: [[(Id, VarInfo)]]
+  vars :: [[(Id, VarInfo)]],
+  funs :: [[(Id, FunInfo)]]
 }
 initEnv :: Env
 initEnv = E {
   nextTemp = "1",
   nextLabel = "1",
   code = [],
-  vars = [[]]
+  vars = [[]],
+  funs = [[]]
 }
 
 -- get Identifier of next temporary variable, updates nextTemp in environment
@@ -76,7 +82,7 @@ exitScope = modify (\env -> env {
 addVar :: Id -> Type -> State Env VarInfo
 addVar id typ =
   do
-    let varinfo = VI (mangleName id) (getLLVMType typ) 0
+    let varinfo = VI (mangleName id) (getLLVMType typ)
     modify (\env -> env {
     vars = case vars env of
       (scope:rest) -> ((id, varinfo) : scope) : rest;
@@ -95,6 +101,29 @@ lookupVar id = do
       Nothing -> look rest id
       Just info -> info
 
+-- Add Function to Environment
+addFun :: Id -> Type -> State Env ()
+addFun id typ =
+  do
+    let funInfo = FI (mangleName id) (getLLVMType typ)
+    modify (\env -> env {
+    funs = case funs env of
+      (scope:rest) -> ((id, funInfo) : scope) : rest;
+      _            -> [[(id, funInfo)]]
+    })
+    return ()
+
+-- Lookup given variable and return it's info
+lookupFun :: Id -> State Env FunInfo
+lookupFun id = do
+    env <- get
+    return $ look (funs env) id
+  where
+    look [] id = error $ "Unknown function " ++ printTree id ++ "."
+    look (scope:rest) id = case lookup id scope of
+      Nothing -> look rest id
+      Just info -> info
+
 -- emits instruction to environment
 emit :: Instruction -> State Env ()
 emit i = modify (\env -> env {code = code env ++ [i]})
@@ -105,7 +134,24 @@ emit i = modify (\env -> env {code = code env ++ [i]})
 
 -- Generate code for Program
 codeGen :: Program -> [Instruction]
-codeGen (PDefs defs) = code $ execState (codeGenDefs defs) initEnv
+codeGen (PDefs defs) = code $ execState (generate defs) initEnv
+
+generate :: [Def] -> State Env ()
+generate defs =
+  do
+    checkDecls defs
+    codeGenDefs defs
+
+-- Check a list of declarations
+checkDecls :: [Def] -> State Env ()
+checkDecls defs = mapM_ checkDecl defs
+
+-- Check a declaration for validity
+checkDecl :: Def -> State Env ()
+checkDecl def =
+  case def of
+    DFun typ identifier args stmts -> do
+      addFun identifier typ
 
 -- Generate code for Definitions
 codeGenDefs :: [Def] -> State Env ()
@@ -113,7 +159,6 @@ codeGenDefs defs = mapM_ codeGenDef defs
 
 -- Generate code for Definition
 codeGenDef :: Def -> State Env ()
--- TODO - allocate return type??
 codeGenDef (DFun typ id args stmts) = do
   enterScope
   -- add arguments to current sope
@@ -135,8 +180,8 @@ codeGenArg (ADecl _ id) = do
   emit (allocate (typ info) tmp)
   emit (store (typ info) (getMangled info) tmp)
   modify (\env -> env {vars = case vars env of
-    (scope:rest) -> ((id, VI (tail tmp) (typ info) 0) : scope) : rest
-    _            -> [[(id, VI (tail tmp) (typ info) 0)]]
+    (scope:rest) -> ((id, VI (tail tmp) (typ info)) : scope) : rest
+    _            -> [[(id, VI (tail tmp) (typ info))]]
   })
   return ()
 
