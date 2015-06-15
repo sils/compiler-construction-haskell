@@ -252,6 +252,20 @@ codeGenExpr expr =
     ETyped exp typ           -> codeGenExpr exp
 
 
+genCmpExpr :: LLVMExpr -> Exp -> Exp -> State Env (LLVMExpr, LLVMType)
+genCmpExpr cond lhs rhs =
+  do
+    lhs, typ <- codeGenExpr lhs
+    rhs, _ <- codeGenExpr rhs
+    instr <- (\typ -> if (typ == "i32") then
+                        return " = icmp "
+                      else
+                        return " = fcmp ") typ
+    tmp = getNextTemp
+    emit (tmp++instr++typ++" "++lhs++", "++rhs)
+    return tmp
+
+
 -------------------------------------------------------------------------------------------------
 --LLVM methods
 -------------------------------------------------------------------------------------------------
