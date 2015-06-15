@@ -111,10 +111,20 @@ codeGenDef (DFun typ id args stmts) = do
   mapM_ (\(ADecl typ id) -> addVar id typ) args
   infos <- mapM (\(ADecl _ id) -> lookupVar id) args
   emit (define typ id infos)
+  mapM_ codeGenArg args
   codeGenStmts stmts typ
   emit "}\n"
   exitScope
   resetNextTemp
+  return ()
+
+-- Generate code for function argument
+codeGenArg :: Arg -> State Env ()
+codeGenArg (ADecl _ id) = do
+  tmp <- getNextTemp
+  info <- lookupVar id
+  emit (allocate (typ info) tmp)
+  emit (store (typ info) (getMangled info) tmp)
   return ()
 
 -- Generate code for Statements
