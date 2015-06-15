@@ -130,7 +130,9 @@ codeGenStmt :: Stm -> State Env ()
 codeGenStmt stm =
   case stm of
     SExp exp                 -> return ()
-    SDecls typ identifiers   -> return ()
+    SDecls typ identifiers   ->
+      mapM_ (\id -> emit (allocate (getLLVMType typ) (mangleName id))) identifiers
+      -- TODO add vars to scope
     SInit typ identifier exp -> return ()
     SReturn exp              -> return ()
     SReturnVoid              -> emit "ret void"
