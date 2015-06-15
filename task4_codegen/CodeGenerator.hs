@@ -162,8 +162,34 @@ codeGenStmt stm rettyp =
 
 -- Generate code for Expression
 codeGenExpr :: Exp -> State Env LLVMExpr
--- TODO - Pattern match expr, generate code, return identifier of nextTemp
-codeGenExpr expr = return ""
+codeGenExpr expr =
+  case expr of
+    ETrue                    -> return ""
+    EFalse                   -> return ""
+    EInt _                   -> return ""
+    EDouble _                -> return ""
+    EString _                -> return ""
+    EId id                   -> return ""
+    EApp id exprs            -> return ""
+    EPIncr exp               -> return ""
+    EPDecr exp               -> return ""
+    EIncr exp                -> return ""
+    EDecr exp                -> return ""
+    ETimes lhs rhs           -> return ""
+    EDiv lhs rhs             -> return ""
+    EPlus lhs rhs            -> return ""
+    EMinus lhs rhs           -> return ""
+    ELt lhs rhs              -> return ""
+    EGt lhs rhs              -> return ""
+    ELtEq lhs rhs            -> return ""
+    EGtEq lhs rhs            -> return ""
+    EEq lhs rhs              -> return ""
+    ENEq lhs rhs             -> return ""
+    EAnd lhs rhs             -> return ""
+    EOr lhs rhs              -> return ""
+    EAss lhs rhs             -> return ""
+    ETyped _ typ             -> return ""
+
 
 -------------------------------------------------------------------------------------------------
 --LLVM methods
