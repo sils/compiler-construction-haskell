@@ -195,46 +195,10 @@ codeGenExpr expr =
     EPDecr exp               -> return ("", "")
     EIncr exp                -> return ("", "")
     EDecr exp                -> return ("", "")
-    ETimes lhs rhs           ->
-      do
-        (lhs, lhsType) <- codeGenExpr lhs
-        (rhs, rhsType) <- codeGenExpr rhs
-        tmp <- getNextTemp
-        if (lhsType == "i32") then
-          emit (tmp ++ " = mul " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
-        else
-          emit (tmp ++ " = fmul " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
-        return (tmp, lhsType)
-    EDiv lhs rhs             ->
-      do
-        (lhs, lhsType) <- codeGenExpr lhs
-        (rhs, rhsType) <- codeGenExpr rhs
-        tmp <- getNextTemp
-        if (lhsType == "i32") then
-          emit (tmp ++ " = sdiv " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
-        else
-          emit (tmp ++ " = fdiv " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
-        return (tmp, lhsType)
-    EPlus lhs rhs            ->
-      do
-        (lhs, lhtype) <- codeGenExpr lhs
-        (rhs, rhtype) <- codeGenExpr rhs
-        tmp <- getNextTemp
-        if (lhtype == "i32") then
-          emit (tmp++" = add "++lhtype++" "++lhs++", "++rhs)
-        else
-          emit (tmp++" = fadd "++lhtype++" "++lhs++", "++rhs)
-        return ((tmp),lhtype)
-    EMinus lhs rhs           ->
-      do
-        (lhs, lhtype) <- codeGenExpr lhs
-        (rhs, rhtype) <- codeGenExpr rhs
-        tmp <- getNextTemp
-        if (lhtype == "i32") then
-          emit (tmp++" = sub "++lhtype++" "++lhs++", "++rhs)
-        else
-          emit (tmp++" = fsub "++lhtype++" "++lhs++", "++rhs)
-        return (tmp,lhtype)
+    ETimes lhs rhs           -> genBinOpExpr lhs rhs [("i32","mul"), ("double", "fmul")]
+    EDiv lhs rhs             -> genBinOpExpr lhs rhs [("i32","sdiv"), ("double", "fdiv")]
+    EPlus lhs rhs            -> genBinOpExpr lhs rhs [("i32","add"), ("double", "fadd")]
+    EMinus lhs rhs           -> genBinOpExpr lhs rhs [("i32","sub"), ("double", "fsub")]
     ELt lhs rhs              -> genCmpExpr "slt" lhs rhs
     EGt lhs rhs              -> genCmpExpr "sgt" lhs rhs
     ELtEq lhs rhs            -> genCmpExpr "sle" lhs rhs
@@ -274,6 +238,17 @@ genBinExpr binop lhs rhs =
     emit (tmp++" = "++binop++" "++typ++" "++lhs++", "++rhs)
     return (tmp, typ)
 
+-- Generate llvm code for binary oparation, specify Type -> operation mapping in ops list
+genBinOpExpr :: Exp -> Exp -> [(String, String)] -> State Env (LLVMExpr, LLVMType)
+genBinOpExpr lhs rhs ops =
+  do
+    (lhs, lhsType) <- codeGenExpr lhs
+    (rhs, _) <- codeGenExpr rhs
+    tmp <- getNextTemp
+    case lookup lhsType ops of
+      Nothing -> error $ "type for operation " ++ lhsType ++ " not found"
+      Just op -> emit (tmp ++ " = " ++ op ++ " " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
+    return (tmp,lhsType)
 
 -------------------------------------------------------------------------------------------------
 --LLVM methods
