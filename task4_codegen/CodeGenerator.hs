@@ -176,7 +176,12 @@ codeGenExpr expr =
         emit (allocate "i1" id)
         emit (store "i1" "0" id)
         return (id, "i1")
-    EInt _                   -> return ("", "")
+    EInt value               ->
+      do
+        id <- getNextTemp
+        emit (allocate "i32" id)
+        emit (store "i32" (show value) id)
+        return (id, "i32")
     EDouble _                -> return ("", "")
     EString _                -> return ("", "")
     EId id                   ->
@@ -197,7 +202,7 @@ codeGenExpr expr =
         (lhs, lhtype) <- codeGenExpr lhs
         (rhs, rhtype) <- codeGenExpr rhs
         tmp <- getNextTemp
-        emit ("%"++tmp++" = add "++lhtype++" "++lhs++" "++rhs)
+        emit ("%"++tmp++" = add "++lhtype++" %"++lhs++" %"++rhs)
         return (tmp,lhtype)
     EMinus lhs rhs           -> return ("", "")
     ELt lhs rhs              -> return ("", "")
