@@ -125,7 +125,7 @@ codeGenArg (ADecl _ id) = do
   info <- lookupVar id
   emit (allocate (typ info) tmp)
   emit (store (typ info) (getMangled info) tmp)
-  modify (\env -> env {vars = case vars env of 
+  modify (\env -> env {vars = case vars env of
     (scope:rest) -> ((id, VI (tail tmp) (typ info) 0) : scope) : rest
     _            -> [[(id, VI (tail tmp) (typ info) 0)]]
   })
@@ -235,12 +235,12 @@ codeGenExpr expr =
         else
           emit (tmp++" = fsub "++lhtype++" "++lhs++", "++rhs)
         return (tmp,lhtype)
-    ELt lhs rhs              -> return ("", "")
-    EGt lhs rhs              -> return ("", "")
-    ELtEq lhs rhs            -> return ("", "")
-    EGtEq lhs rhs            -> return ("", "")
-    EEq lhs rhs              -> return ("", "")
-    ENEq lhs rhs             -> return ("", "")
+    ELt lhs rhs              -> genCmpExpr "slt" lhs rhs
+    EGt lhs rhs              -> genCmpExpr "sgt" lhs rhs
+    ELtEq lhs rhs            -> genCmpExpr "sle" lhs rhs
+    EGtEq lhs rhs            -> genCmpExpr "sge" lhs rhs
+    EEq lhs rhs              -> genCmpExpr "eq" lhs rhs
+    ENEq lhs rhs             -> genCmpExpr "ne" lhs rhs
     EAnd lhs rhs             -> return ("", "")
     EOr lhs rhs              -> return ("", "")
     EAss (ETyped (EId lhsid) _) rhs ->
@@ -255,15 +255,15 @@ codeGenExpr expr =
 genCmpExpr :: LLVMExpr -> Exp -> Exp -> State Env (LLVMExpr, LLVMType)
 genCmpExpr cond lhs rhs =
   do
-    lhs, typ <- codeGenExpr lhs
-    rhs, _ <- codeGenExpr rhs
+    (lhs, typ) <- codeGenExpr lhs
+    (rhs, _) <- codeGenExpr rhs
     instr <- (\typ -> if (typ == "i32") then
                         return " = icmp "
                       else
                         return " = fcmp ") typ
-    tmp = getNextTemp
+    tmp <- getNextTemp
     emit (tmp++instr++typ++" "++lhs++", "++rhs)
-    return tmp
+    return (tmp, typ)
 
 
 -------------------------------------------------------------------------------------------------
