@@ -205,7 +205,16 @@ codeGenExpr expr =
         else
           emit (tmp ++ " = fmul " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
         return (tmp, lhsType)
-    EDiv lhs rhs             -> return ("", "")
+    EDiv lhs rhs             ->
+      do
+        (lhs, lhsType) <- codeGenExpr lhs
+        (rhs, rhsType) <- codeGenExpr rhs
+        tmp <- getNextTemp
+        if (lhsType == "i32") then
+          emit (tmp ++ " = sdiv " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
+        else
+          emit (tmp ++ " = fdiv " ++ lhsType ++ " " ++ lhs ++ ", " ++ rhs)
+        return (tmp, lhsType)
     EPlus lhs rhs            ->
       do
         (lhs, lhtype) <- codeGenExpr lhs
