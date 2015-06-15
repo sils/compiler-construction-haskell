@@ -212,7 +212,16 @@ codeGenExpr expr =
         else
           emit ("%"++tmp++" = fadd "++lhtype++" %"++lhs++" %"++rhs)
         return (tmp,lhtype)
-    EMinus lhs rhs           -> return ("", "")
+    EMinus lhs rhs           ->
+      do
+        (lhs, lhtype) <- codeGenExpr lhs
+        (rhs, rhtype) <- codeGenExpr rhs
+        tmp <- getNextTemp
+        if (lhtype == "i32") then
+          emit ("%"++tmp++" = sub "++lhtype++" %"++lhs++" %"++rhs)
+        else
+          emit ("%"++tmp++" = fsub "++lhtype++" %"++lhs++" %"++rhs)
+        return (tmp,lhtype)
     ELt lhs rhs              -> return ("", "")
     EGt lhs rhs              -> return ("", "")
     ELtEq lhs rhs            -> return ("", "")
