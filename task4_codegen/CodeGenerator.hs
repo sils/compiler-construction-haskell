@@ -109,7 +109,7 @@ codeGenDef (DFun typ id args stmts) = do
   infos <- mapM (\(ADecl _ id) -> lookupVar id) args
   emit (define typ id infos)
   mapM_ codeGenArg args
-  codeGenStmts stmts
+  codeGenStmts stmts typ
   emit "}\n"
   exitScope
   resetNextTemp
@@ -125,12 +125,12 @@ codeGenArg (ADecl _ id) = do
   return ()
 
 -- Generate code for Statements
-codeGenStmts :: [Stm] -> State Env ()
-codeGenStmts stmts = mapM_ codeGenStmt stmts
+codeGenStmts :: [Stm] -> Type -> State Env ()
+codeGenStmts stmts typ = mapM_ (\stmt -> (codeGenStmt stmt typ)) stmts
 
 -- Generate code for Statement
-codeGenStmt :: Stm -> State Env ()
-codeGenStmt stm =
+codeGenStmt :: Stm -> Type -> State Env ()
+codeGenStmt stm rettyp =
   case stm of
     SExp exp                 -> return ()
     SDecls typ identifiers   ->
@@ -143,13 +143,16 @@ codeGenStmt stm =
         emit (allocate (getLLVMType typ) (mangled varinfo))
         tmp <- codeGenExpr exp
         emit (store (getLLVMType typ) tmp (mangled varinfo))
-    SReturn exp              -> return ()
+    SReturn exp              ->
+      do
+        tmp <- codeGenExpr exp
+        emit ("ret " ++ (getLLVMType rettyp) ++ " %" ++ tmp)
     SReturnVoid              -> emit "ret void"
     SWhile exp stmt          -> return ()
     SBlock stmts             ->
       do
         enterScope
-        codeGenStmts stmts
+        codeGenStmts stmts rettyp
         exitScope
     SIfElse exp stmt1 stmt2  -> return ()
 
