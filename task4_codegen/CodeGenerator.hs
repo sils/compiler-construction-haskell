@@ -137,7 +137,12 @@ codeGenStmt stm =
       do
         varInfos <- mapM (\id -> addVar id typ) identifiers
         mapM_ (\varInfo -> emit (allocate (getLLVMType typ) (mangled varInfo))) varInfos
-    SInit typ identifier exp -> return ()
+    SInit typ identifier exp ->
+      do
+        varinfo <- addVar identifier typ
+        emit (allocate (getLLVMType typ) (mangled varinfo))
+        tmp <- codeGenExpr exp
+        emit (store (getLLVMType typ) tmp (mangled varinfo))
     SReturn exp              -> return ()
     SReturnVoid              -> emit "ret void"
     SWhile exp stmt          -> return ()
