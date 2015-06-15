@@ -263,18 +263,10 @@ genLabel label = emit (label++":")
 codeGenExpr :: Exp -> State Env (LLVMExpr, LLVMType)
 codeGenExpr expr =
   case expr of
-    ETrue                    ->
-      do
-        return ("1", "i1")
-    EFalse                   ->
-      do
-        return ("0", "i1")
-    EInt value               ->
-      do
-        return ((show value), "i32")
-    EDouble value            ->
-      do
-        return ((show value), "double")
+    ETrue                    -> return ("1", "i1")
+    EFalse                   -> return ("0", "i1")
+    EInt value               -> return ((show value), "i32")
+    EDouble value            -> return ((show value), "double")
     EString _                -> return ("", "")
     EId id                   ->
       do
