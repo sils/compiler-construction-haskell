@@ -46,6 +46,13 @@ getNextTemp = do
   modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
   return ("%"++tmp)
 
+getNextLabel :: State Env LLVMExpr
+getNextLabel = do
+  env <- get
+  let tmp = nextTemp env
+  modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
+  return ("l"++tmp)
+
 -- reset next temporary variable counter
 resetNextTemp :: State Env ()
 resetNextTemp = modify (\env -> env{nextTemp = "1"})
@@ -158,14 +165,51 @@ codeGenStmt stm rettyp =
         (tmp,_) <- codeGenExpr exp
         emit ("ret " ++ (getLLVMType rettyp) ++ " " ++ tmp)
     SReturnVoid              -> emit "ret void"
-    SWhile exp stmt          -> return ()
+    SWhile exp stmt          ->
+      do
+        cond_label <- getNextLabel
+        body_label <- getNextLabel
+        finally_label <- getNextLabel
+
+        genLabel cond_label
+        (tmp, typ) <- codeGenExpr exp
+        genBranch tmp body_label finally_label
+
+        genLabel body_label
+        codeGenStmt stmt rettyp
+        genJump cond_label
+
+        genLabel finally_label
+
     SBlock stmts             ->
       do
         enterScope
         codeGenStmts stmts rettyp
         exitScope
-    SIfElse exp stmt1 stmt2  -> return ()
+    SIfElse exp stmt1 stmt2  ->
+      do
+        (tmp, typ) <- codeGenExpr exp
+        then_label <- getNextLabel
+        else_label <- getNextLabel
+        finally_label <- getNextLabel
+        genBranch tmp then_label else_label
+        genLabel then_label
+        codeGenStmt stmt1 rettyp
+        genJump finally_label
+        genLabel else_label
+        codeGenStmt stmt2 rettyp
+        genJump finally_label
+        genLabel finally_label
 
+genBranch :: LLVMExpr -> LLVMExpr -> LLVMExpr -> State Env ()
+genBranch cond true_label false_label =
+  emit ("br i1 "++cond++", label %"++true_label++", label %"++false_label)
+
+genJump :: LLVMExpr -> State Env ()
+genJump target = emit ("br label %"++target)
+
+genLabel :: LLVMExpr -> State Env ()
+genLabel label = emit (label++":")
 
 -- Generate code for Expression
 codeGenExpr :: Exp -> State Env (LLVMExpr, LLVMType)
