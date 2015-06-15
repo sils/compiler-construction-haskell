@@ -144,11 +144,11 @@ codeGenStmt stm rettyp =
       do
         varinfo <- addVar identifier typ
         emit (allocate (getLLVMType typ) (mangled varinfo))
-        tmp <- codeGenExpr exp
+        (tmp,_) <- codeGenExpr exp
         emit (store (getLLVMType typ) tmp (mangled varinfo))
     SReturn exp              ->
       do
-        tmp <- codeGenExpr exp
+        (tmp,_) <- codeGenExpr exp
         emit ("ret " ++ (getLLVMType rettyp) ++ " %" ++ tmp)
     SReturnVoid              -> emit "ret void"
     SWhile exp stmt          -> return ()
@@ -161,7 +161,7 @@ codeGenStmt stm rettyp =
 
 
 -- Generate code for Expression
-codeGenExpr :: Exp -> State Env LLVMExpr
+codeGenExpr :: Exp -> State Env (LLVMExpr, LLVMType)
 codeGenExpr expr =
   case expr of
     ETrue                    ->
@@ -169,40 +169,46 @@ codeGenExpr expr =
         id <- getNextTemp
         emit (allocate "i1" id)
         emit (store "i1" "1" id)
-        return id
+        return (id, "i1")
     EFalse                   ->
       do
         id <- getNextTemp
         emit (allocate "i1" id)
         emit (store "i1" "0" id)
-        return id
-    EInt _                   -> return ""
-    EDouble _                -> return ""
-    EString _                -> return ""
+        return (id, "i1")
+    EInt _                   -> return ("", "")
+    EDouble _                -> return ("", "")
+    EString _                -> return ("", "")
     EId id                   ->
       do
         varinfo <- lookupVar id
         tmp <- getNextTemp
         emit ("%" ++ tmp ++ " = load " ++ (typ varinfo) ++ "* %" ++ mangled varinfo)
-        return tmp
-    EApp id exprs            -> return ""
-    EPIncr exp               -> return ""
-    EPDecr exp               -> return ""
-    EIncr exp                -> return ""
-    EDecr exp                -> return ""
-    ETimes lhs rhs           -> return ""
-    EDiv lhs rhs             -> return ""
-    EPlus lhs rhs            -> return ""
-    EMinus lhs rhs           -> return ""
-    ELt lhs rhs              -> return ""
-    EGt lhs rhs              -> return ""
-    ELtEq lhs rhs            -> return ""
-    EGtEq lhs rhs            -> return ""
-    EEq lhs rhs              -> return ""
-    ENEq lhs rhs             -> return ""
-    EAnd lhs rhs             -> return ""
-    EOr lhs rhs              -> return ""
-    EAss lhs rhs             -> return ""
+        return (tmp, (typ varinfo))
+    EApp id exprs            -> return ("", "")
+    EPIncr exp               -> return ("", "")
+    EPDecr exp               -> return ("", "")
+    EIncr exp                -> return ("", "")
+    EDecr exp                -> return ("", "")
+    ETimes lhs rhs           -> return ("", "")
+    EDiv lhs rhs             -> return ("", "")
+    EPlus lhs rhs            ->
+      do
+        (lhs, lhtype) <- codeGenExpr lhs
+        (rhs, rhtype) <- codeGenExpr rhs
+        tmp <- getNextTemp
+        emit ("%"++tmp++" = add "++lhtype++" "++lhs++" "++rhs)
+        return (tmp,lhtype)
+    EMinus lhs rhs           -> return ("", "")
+    ELt lhs rhs              -> return ("", "")
+    EGt lhs rhs              -> return ("", "")
+    ELtEq lhs rhs            -> return ("", "")
+    EGtEq lhs rhs            -> return ("", "")
+    EEq lhs rhs              -> return ("", "")
+    ENEq lhs rhs             -> return ("", "")
+    EAnd lhs rhs             -> return ("", "")
+    EOr lhs rhs              -> return ("", "")
+    EAss lhs rhs             -> return ("", "")
     ETyped exp typ           -> codeGenExpr exp
 
 
