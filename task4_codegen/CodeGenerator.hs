@@ -18,6 +18,9 @@ data VarInfo = VI {
   uses :: Int
 }
 
+getMangled :: VarInfo -> LLVMExpr
+getMangled varinfo = ("%"++(mangled varinfo))
+
 -------------------------------------------------------------------------------------------------
 --Environment methods
 -------------------------------------------------------------------------------------------------
@@ -41,7 +44,7 @@ getNextTemp = do
   env <- get
   let tmp = nextTemp env
   modify (\env -> env {nextTemp = show (read (nextTemp env) + 1)})
-  return tmp
+  return ("%"++tmp)
 
 -- reset next temporary variable counter
 resetNextTemp :: State Env ()
@@ -121,7 +124,7 @@ codeGenArg (ADecl _ id) = do
   tmp <- getNextTemp
   info <- lookupVar id
   emit (allocate (typ info) tmp)
-  emit (store (typ info) ("%" ++ mangled info) tmp)
+  emit (store (typ info) (getMangled info) tmp)
   return ()
 
 -- Generate code for Statements
@@ -139,17 +142,17 @@ codeGenStmt stm rettyp =
     SDecls typ identifiers   ->
       do
         varInfos <- mapM (\id -> addVar id typ) identifiers
-        mapM_ (\varInfo -> emit (allocate (getLLVMType typ) (mangled varInfo))) varInfos
+        mapM_ (\varInfo -> emit (allocate (getLLVMType typ) (getMangled varInfo))) varInfos
     SInit typ identifier exp ->
       do
         varinfo <- addVar identifier typ
-        emit (allocate (getLLVMType typ) (mangled varinfo))
+        emit (allocate (getLLVMType typ) (getMangled varinfo))
         (tmp,_) <- codeGenExpr exp
-        emit (store (getLLVMType typ) ("%"++tmp) (mangled varinfo))
+        emit (store (getLLVMType typ) tmp (getMangled varinfo))
     SReturn exp              ->
       do
         (tmp,_) <- codeGenExpr exp
-        emit ("ret " ++ (getLLVMType rettyp) ++ " %" ++ tmp)
+        emit ("ret " ++ (getLLVMType rettyp) ++ " " ++ tmp)
     SReturnVoid              -> emit "ret void"
     SWhile exp stmt          -> return ()
     SBlock stmts             ->
@@ -166,34 +169,22 @@ codeGenExpr expr =
   case expr of
     ETrue                    ->
       do
-        id <- getNextTemp
-        emit (allocate "i1" id)
-        emit (store "i1" "1" id)
-        return (id, "i1")
+        return ("1", "i1")
     EFalse                   ->
       do
-        id <- getNextTemp
-        emit (allocate "i1" id)
-        emit (store "i1" "0" id)
-        return (id, "i1")
+        return ("0", "i1")
     EInt value               ->
       do
-        id <- getNextTemp
-        emit (allocate "i32" id)
-        emit (store "i32" (show value) id)
-        return (id, "i32")
+        return ((show value), "i32")
     EDouble value            ->
       do
-        id <- getNextTemp
-        emit (allocate "double" id)
-        emit (store "double" (show value) id)
-        return (id, "double")
+        return ((show value), "double")
     EString _                -> return ("", "")
     EId id                   ->
       do
         varinfo <- lookupVar id
         tmp <- getNextTemp
-        emit ("%" ++ tmp ++ " = load " ++ (typ varinfo) ++ "* %" ++ mangled varinfo)
+        emit (tmp ++ " = load " ++ (typ varinfo) ++ "* " ++ getMangled varinfo)
         return (tmp, (typ varinfo))
     EApp id exprs            -> return ("", "")
     EPIncr exp               -> return ("", "")
@@ -208,19 +199,19 @@ codeGenExpr expr =
         (rhs, rhtype) <- codeGenExpr rhs
         tmp <- getNextTemp
         if (lhtype == "i32") then
-          emit ("%"++tmp++" = add "++lhtype++" %"++lhs++", %"++rhs)
+          emit (tmp++" = add "++lhtype++" "++lhs++", "++rhs)
         else
-          emit ("%"++tmp++" = fadd "++lhtype++" %"++lhs++", %"++rhs)
-        return (tmp,lhtype)
+          emit (tmp++" = fadd "++lhtype++" "++lhs++", "++rhs)
+        return ((tmp),lhtype)
     EMinus lhs rhs           ->
       do
         (lhs, lhtype) <- codeGenExpr lhs
         (rhs, rhtype) <- codeGenExpr rhs
         tmp <- getNextTemp
         if (lhtype == "i32") then
-          emit ("%"++tmp++" = sub "++lhtype++" %"++lhs++", %"++rhs)
+          emit (tmp++" = sub "++lhtype++" "++lhs++", "++rhs)
         else
-          emit ("%"++tmp++" = fsub "++lhtype++" %"++lhs++", %"++rhs)
+          emit (tmp++" = fsub "++lhtype++" "++lhs++", "++rhs)
         return (tmp,lhtype)
     ELt lhs rhs              -> return ("", "")
     EGt lhs rhs              -> return ("", "")
@@ -234,8 +225,8 @@ codeGenExpr expr =
       do
         (rhs, rhtype) <- codeGenExpr rhs
         varinfo <- lookupVar lhsid
-        emit (store rhtype ("%"++rhs) (mangled varinfo))
-        return ((mangled varinfo), (typ varinfo))
+        emit (store rhtype rhs (getMangled varinfo))
+        return ((getMangled varinfo), (typ varinfo))
     ETyped exp typ           -> codeGenExpr exp
 
 
@@ -263,11 +254,11 @@ define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(
 
 -- Create llvm instruction for allocation
 allocate :: LLVMType -> LLVMExpr -> Instruction
-allocate typ id = "%" ++ id ++ " = alloca " ++ typ
+allocate typ id = id ++ " = alloca " ++ typ
 
 -- Create llvm instruction for store, source must include '%' sign if required
 store :: LLVMType -> LLVMExpr -> LLVMExpr -> Instruction
-store typ source target = "store " ++ typ ++ " " ++ source ++ ", " ++ typ ++ "* %" ++ target
+store typ source target = "store " ++ typ ++ " " ++ source ++ ", " ++ typ ++ "* " ++ target
 
 -- Compile list of function arguments to string
 compileArgs :: [VarInfo] -> String
@@ -277,6 +268,6 @@ compileArgs (a:as) = compileArg a ++ "," ++ compileArgs as
 
 -- Compile function argument to string
 compileArg :: VarInfo -> String
-compileArg info = typ info ++ " %" ++ mangled info
+compileArg info = typ info ++ " " ++ getMangled info
 
 
