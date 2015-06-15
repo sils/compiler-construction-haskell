@@ -241,8 +241,8 @@ codeGenExpr expr =
     EGtEq lhs rhs            -> genCmpExpr "sge" lhs rhs
     EEq lhs rhs              -> genCmpExpr "eq" lhs rhs
     ENEq lhs rhs             -> genCmpExpr "ne" lhs rhs
-    EAnd lhs rhs             -> return ("", "")
-    EOr lhs rhs              -> return ("", "")
+    EAnd lhs rhs             -> genBinExpr "and" lhs rhs
+    EOr lhs rhs              -> genBinExpr "or" lhs rhs
     EAss (ETyped (EId lhsid) _) rhs ->
       do
         (rhs, rhtype) <- codeGenExpr rhs
@@ -263,6 +263,15 @@ genCmpExpr cond lhs rhs =
                         return " = fcmp ") typ
     tmp <- getNextTemp
     emit (tmp++instr++typ++" "++lhs++", "++rhs)
+    return (tmp, typ)
+
+genBinExpr :: LLVMExpr -> Exp -> Exp -> State Env (LLVMExpr, LLVMType)
+genBinExpr binop lhs rhs =
+  do
+    (lhs, typ) <- codeGenExpr lhs
+    (rhs, _) <- codeGenExpr rhs
+    tmp <- getNextTemp
+    emit (tmp++" = "++binop++" "++typ++" "++lhs++", "++rhs)
     return (tmp, typ)
 
 
