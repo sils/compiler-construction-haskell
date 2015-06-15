@@ -182,7 +182,12 @@ codeGenExpr expr =
         emit (allocate "i32" id)
         emit (store "i32" (show value) id)
         return (id, "i32")
-    EDouble _                -> return ("", "")
+    EDouble value            ->
+      do
+        id <- getNextTemp
+        emit (allocate "f64" id)
+        emit (store "f64" (show value) id)
+        return (id, "f64")
     EString _                -> return ("", "")
     EId id                   ->
       do
