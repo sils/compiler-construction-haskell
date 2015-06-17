@@ -171,6 +171,10 @@ codeGenDef (DFun typ id args stmts) = do
   emit (define typ id infos)
   mapM_ codeGenArg args
   codeGenStmts stmts typ
+  if (getLLVMType typ) == "double" then
+    emit ("ret " ++ (getLLVMType typ) ++ " 0.0")
+  else
+    emit ("ret " ++ (getLLVMType typ) ++ " 0")
   emit "}\n"
   exitScope
   resetNextTemp
