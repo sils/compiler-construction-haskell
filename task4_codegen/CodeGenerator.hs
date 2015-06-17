@@ -33,6 +33,7 @@ getMangled varinfo = ("%"++(mangled varinfo))
 data Env = E {
   nextTemp :: LLVMExpr,
   nextLabel :: LLVMExpr,
+  mangledIds :: [LLVMExpr],
   code :: [Instruction],
   vars :: [[(Id, VarInfo)]],
   funs :: [[(Id, FunInfo)]]
@@ -41,6 +42,7 @@ initEnv :: Env
 initEnv = E {
   nextTemp = "1",
   nextLabel = "1",
+  mangledIds = [],
   code = [],
   vars = [[]],
   funs = [[]]
@@ -82,7 +84,8 @@ exitScope = modify (\env -> env {
 addVar :: Id -> Type -> State Env VarInfo
 addVar id typ =
   do
-    let varinfo = VI (mangleName id) (getLLVMType typ)
+    mangledName <- mangleName id
+    let varinfo = VI mangledName (getLLVMType typ)
     modify (\env -> env {
     vars = case vars env of
       (scope:rest) -> ((id, varinfo) : scope) : rest;
@@ -105,7 +108,8 @@ lookupVar id = do
 addFun :: Id -> Type -> State Env ()
 addFun id typ =
   do
-    let funInfo = FI (mangleName id) (getLLVMType typ)
+    mangledName <- mangleName id
+    let funInfo = FI mangledName (getLLVMType typ)
     modify (\env -> env {
     funs = case funs env of
       (scope:rest) -> ((id, funInfo) : scope) : rest;
@@ -318,6 +322,7 @@ codeGenExpr expr =
             varinfo <- lookupVar lhsid
             emit (store rhtype rhs (getMangled varinfo))
             return ((getMangled varinfo), (typ varinfo))
+        _         -> error $ "unexpected Exp wrapped inside of EAss, only ETyped and EId allowed"
     ETyped exp typ           -> codeGenExpr exp
 
 
@@ -360,9 +365,20 @@ genBinOpExpr lhs rhs ops =
 -------------------------------------------------------------------------------------------------
 
 -- Creates unique name of identifier
-mangleName :: Id -> LLVMExpr
--- TODO - actually mangle name
-mangleName (Id name) = name
+mangleName :: Id -> State Env LLVMExpr
+mangleName (Id name) =
+  do
+    env <- get
+    let newid = getNextMangled name (mangledIds env)
+    modify (\env -> env {mangledIds = (newid:(mangledIds env))})
+    return newid
+
+getNextMangled :: LLVMExpr -> [LLVMExpr] -> LLVMExpr
+getNextMangled id existing =
+  if elem id existing then
+    id
+  else
+    getNextMangled (id++"_") existing
 
 -- Get LLVMType representing given type
 getLLVMType :: Type -> LLVMType
@@ -375,7 +391,7 @@ getLLVMType typ = case typ of
 
 -- Create llvm instruction for function definition
 define :: Type -> Id -> [VarInfo] -> Instruction
-define typ id args = "define " ++ getLLVMType typ ++ " @" ++ mangleName id ++ "(" ++ compileArgs args ++ ") {"
+define typ id args = "define " ++ getLLVMType typ ++ " @" ++ printTree id ++ "(" ++ compileArgs args ++ ") {"
 
 -- Create llvm instruction for allocation
 allocate :: LLVMType -> LLVMExpr -> Instruction
