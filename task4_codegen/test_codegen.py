@@ -7,13 +7,17 @@ def call(command):
 
 def main():
     try:
-        assert call("make") == 0
-        assert call("./TestCPP ./testSuite/codeGenTest.c") == 0
+        print("Building compiler...", end=" ")
+        assert call("make > /dev/null") == 0
+        print("DONE!")
+        print("Compiling testcode...", end=" ")
+        assert call("./TestCPP ./testSuite/codeGenTest.c  > /dev/null") == 0
+        print("DONE!")
         for i in range(8):
             command = "lli TestOutput.ll"+i*" anyarg"
             print("Calling '{}'...".format(command), end=" ")
             assert call(command) == i+2
-            print("DONE.")
+            print("DONE!")
     except AssertionError:
         print("Test failed!")
         exit(1)
