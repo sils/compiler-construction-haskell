@@ -250,12 +250,15 @@ codeGenStmt stm rettyp =
         else_label <- getNextLabel
         finally_label <- getNextLabel
         genBranch tmp then_label else_label
+
         genLabel then_label
         codeGenStmt stmt1 rettyp
         genJump finally_label
+
         genLabel else_label
         codeGenStmt stmt2 rettyp
         genJump finally_label
+
         genLabel finally_label
 
 genBranch :: LLVMExpr -> LLVMExpr -> LLVMExpr -> State Env ()
