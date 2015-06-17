@@ -95,7 +95,6 @@ int testCmp() {
     return c;
   else
     return 0-1;
-  return 0-1;
 }
 
 /**
@@ -148,5 +147,4 @@ int main(int argCount) {
   }
   }
   }
-  return 0-1;
 }
