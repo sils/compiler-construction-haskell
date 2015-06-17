@@ -317,7 +317,7 @@ checkExp env exp =
     EOr lhs rhs              ->
       do
         (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_bool] "Or (||)"
-        Ok (ETyped (EAnd aLhs aRhs) Type_bool)
+        Ok (ETyped (EOr aLhs aRhs) Type_bool)
     EAss lhs rhs             ->
       do
         (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string, Type_bool] "Assignment (=)"

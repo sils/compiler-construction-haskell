@@ -376,9 +376,9 @@ mangleName (Id name) =
 getNextMangled :: LLVMExpr -> [LLVMExpr] -> LLVMExpr
 getNextMangled id existing =
   if elem id existing then
-    id
-  else
     getNextMangled (id++"_") existing
+  else
+    id
 
 -- Get LLVMType representing given type
 getLLVMType :: Type -> LLVMType
