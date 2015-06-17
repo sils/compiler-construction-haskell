@@ -214,8 +214,13 @@ codeGenStmt stm rettyp =
     SReturn exp              ->
       do
         (tmp,_) <- codeGenExpr exp
+        -- increment nextTemp counter cause return ends a basic block
+        getNextTemp
         emit ("ret " ++ (getLLVMType rettyp) ++ " " ++ tmp)
-    SReturnVoid              -> emit "ret void"
+    SReturnVoid              ->
+      do
+        getNextTemp
+        emit "ret void"
     SWhile exp stmt          ->
       do
         cond_label <- getNextLabel
