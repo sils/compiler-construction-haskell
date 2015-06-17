@@ -10,8 +10,10 @@ def main():
         assert call("make") == 0
         assert call("./TestCPP ./testSuite/codeGenTest.c") == 0
         for i in range(8):
-            args = i*" anyarg"
-            assert call("lli TestOutput.ll"+args) == i+2
+            command = "lli TestOutput.ll"+i*" anyarg"
+            print("Calling '{}'...".format(command), end=" ")
+            assert call(command) == i+2
+            print("DONE.")
     except AssertionError:
         print("Test failed!")
         exit(1)
