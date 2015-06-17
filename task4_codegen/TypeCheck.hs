@@ -320,7 +320,7 @@ checkExp env exp =
         Ok (ETyped (EAnd aLhs aRhs) Type_bool)
     EAss lhs rhs             ->
       do
-        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Assignment (=)"
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string, Type_bool] "Assignment (=)"
         typ <- getTyp aLhs
         Ok (ETyped (EAss aLhs aRhs) typ)
     ETyped _ typ            -> Ok exp

@@ -47,7 +47,7 @@ int testMinus() {
   a = 5 - 8;
   b = 2 - a;
   double c = 3.2;
-  double d = 0-1.2;
+  double d = 0.0-1.2;
   c = d - c - c;
   return b;
 }
@@ -74,7 +74,7 @@ int testDiv() {
   int a = 42;
   int b = a / 3;
   double c = 3.5;
-  double d = c / 7 / 0.5;
+  double d = c / 7.0 / 0.5;
   // 23 / (42 / 14)
   return 23 / (0-(a / (0-b)));
 }
