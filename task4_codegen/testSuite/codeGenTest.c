@@ -13,7 +13,7 @@ int testDecls() {
   bool e = false;
   e = true;
   double f, g;
-  double h = -3.452;
+  double h = 3.452;
   {
     int f = 1;
     double d = 3.4;
@@ -42,12 +42,12 @@ int testPlus() {
  * @returns {Integer} 5 on success
  */
 int testMinus() {
-  int a = -1;
+  int a = 0-1;
   int b = 4 - a;
   a = 5 - 8;
   b = 2 - a;
   double c = 3.2;
-  double d = -1.2;
+  double d = 0-1.2;
   c = d - c - c;
   return b;
 }
@@ -76,7 +76,7 @@ int testDiv() {
   double c = 3.5;
   double d = c / 7 / 0.5;
   // 23 / (42 / 14)
-  return 23 / -(a / -b);
+  return 23 / (0-(a / (0-b)));
 }
 
 /**
@@ -86,7 +86,7 @@ int testDiv() {
 int testCmp() {
   int a = 3;
   int b = 2;
-  int c = -1;
+  int c = 0-1;
   if (a < b || a == b || a <= b)
     return c;
   else
@@ -94,7 +94,7 @@ int testCmp() {
   if (a > b && a != b && a >= b)
     return c;
   else
-    return -1;
+    return 0-1;
 }
 
 /**
@@ -139,7 +139,7 @@ int main(int argCount) {
   if (argCount == 8)
     return testWhile();
   else
-    return -1;
+    return 0-1;
   }
   }
   }
