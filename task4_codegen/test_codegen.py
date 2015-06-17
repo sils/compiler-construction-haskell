@@ -1,13 +1,16 @@
 #!/bin/python3
 
-from subprocess import call
+from subprocess import call as _call
+
+def call(command):
+    return _call(command, shell=True)
 
 def main():
-    call("make", shell=True)
-    call("./TestCPP ./testSuite/codeGenTest.c", shell=True)
+    call("make")
+    call("./TestCPP ./testSuite/codeGenTest.c")
     for i in range(8):
         args = i*" anyarg"
-        assert call("lli TestOutput.ll"+args, shell=True) == i+2
+        assert call("lli TestOutput.ll"+args) == i+2
 
 if __name__ == "__main__":
     main()
