@@ -11,12 +11,10 @@ import ParCPP
 import SkelCPP
 import PrintCPP
 import AbsCPP
-import TypeChecker
-
-
-
-
 import ErrM
+import TypeChecker
+import CodeGenerator
+
 
 type ParseFun a = [Token] -> Err a
 
@@ -38,21 +36,33 @@ run v p s = let ts = myLLexer s in case p ts of
                           putStrLn s
                           exitFailure
            Ok  tree -> do putStrLn "\nParse Successful!"
-                          showTree v tree
-                          case typecheck tree of
-                            Bad s -> do
-                                       putStrLn "\nFuck, Type check failed...\n"
-                                       putStrLn s
-                                       exitFailure
-                            Ok _ -> do
-                                         putStrLn "\nHell Yeah, your shit type checked\n"
-                                         exitSuccess
+                          runTypeChecker v tree
 
+runTypeChecker :: Verbosity -> Program -> IO ()
+runTypeChecker v tree = 
+  case typecheck tree of
+    Bad s -> do
+      putStrLn "\nFuck, Type check failed..."
+      showTree "Abstract Syntax" v tree
+      putStrLn s
+      exitFailure
+    Ok aast -> do
+      putStrLn "\nHell Yeah, your shit type checked"
+      runCodeGenerator aast
+      exitSuccess
 
-showTree :: (Show a, Print a) => Int -> a -> IO ()
-showTree v tree
+runCodeGenerator :: Program -> IO ()
+runCodeGenerator aast = do
+  let instrs = codeGen aast
+  let instrs_ = unlines instrs
+  writeFile "TestOutput.ll" instrs_
+  putStrLn ""
+  mapM_ putStrLn instrs
+
+showTree :: (Show a, Print a) => String -> Int -> a -> IO ()
+showTree name v tree
  = do
-      putStrV v $ "\n[Abstract Syntax]\n\n" ++ show tree
+      putStrV v $ "\n[" ++ name ++ "]\n\n" ++ show tree
       putStrV v $ "\n[Linearized tree]\n\n" ++ printTree tree
 
 main :: IO ()

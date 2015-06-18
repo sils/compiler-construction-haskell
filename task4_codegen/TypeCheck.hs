@@ -14,6 +14,34 @@ type Env = [([Fun], [Var])]
 emptyEnv :: Env
 emptyEnv = [([],[])]
 
+
+------------------------------------------------------------------------------
+--TypeChecker
+-----------------------------------------------------------------------------
+
+-- TypeCheck given program
+-- adds all function declarations to outer scope
+-- then typeChecks all functions
+typecheck :: Program -> Err Program
+typecheck (PDefs defs) =
+  do
+    env <- checkDecls emptyEnv defs
+    (env, aDefs) <- checkDefs env defs
+    Ok (PDefs aDefs)
+
+------------------------------------------------------------------------------
+--Environment Methods
+-----------------------------------------------------------------------------
+
+-- Adds a new empty scope to the environment.
+addScope :: Env -> Err Env
+addScope env = Ok (([],[]):env)
+
+-- Remove outermost scope of environment
+remScope :: Env -> Err Env
+remScope [] = Bad []
+remScope (scope:rest) = Ok rest
+
 -- Adds a variable to the uppermost scope of the given environment.
 addVar :: Env -> Id -> Type -> Err Env
 addVar [] _ _ = Bad ("Can't add a variable to environment without scopes")
@@ -47,6 +75,7 @@ addFun env@(scope:rest) identifier typ args =
         remScope ((\(scope:outer:rest) -> scope:(((identifier, sig):(fst outer), snd outer):rest)) env__)
     Just _ -> Bad ("Function " ++ printTree identifier ++ " was already declared.")
 
+-- enters scope of given function, adds all parameters of function to new scope
 addParams :: Env -> Id -> Type -> [ Arg ] -> Err Env
 addParams [] _ _ _ = Bad ("Can't add a function params to environment without scopes")
 addParams env@(scope:rest) identifier typ args =
@@ -57,8 +86,7 @@ addParams env@(scope:rest) identifier typ args =
         -- enter function scope
         env_ <- addScope env
         -- add all argument variables to scope
-        env__ <- foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
-        Ok env__
+        foldM (\env (ADecl typ identifier) -> addVar env identifier typ) env_ args
 
 -- Looks up a variable in the given environment.
 lookupVar :: Env -> Id -> Err Type
@@ -76,221 +104,281 @@ lookupFun (scope:rest) identifier =
     Nothing -> lookupFun rest identifier
     Just sig -> Ok sig
 
--- Adds a new empty scope to the environment.
-addScope :: Env -> Err Env
-addScope env = Ok (([],[]):env)
+-------------------------------------------------------------------------------------
+--Methods for first run thru tree, Adds function definitions to environment
+-------------------------------------------------------------------------------------
 
-remScope :: Env -> Err Env
-remScope [] = Bad []
-remScope (scope:rest) = Ok rest
-
-
-typecheck :: Program -> Err ()
-typecheck (PDefs defs) =
-  do
-    env <- checkDecls emptyEnv defs
-    checkDefs env defs
-
-
+-- Check a list of declarations
 checkDecls :: Env -> [ Def ] -> Err Env
-checkDecls env [] = Ok env
-checkDecls env (def:defs) =
-  do
-    -- Why monad needed?
-    env_ <- checkDecl env def
-    checkDecls env_ defs
+checkDecls env defs = foldM (\env def -> checkDecl env def) env defs
 
+-- Check a declaration for validity
 checkDecl :: Env -> Def -> Err Env
 checkDecl env def =
   case def of
-    DFun typ identifier args stmts -> addFun env identifier typ args
+    DFun typ identifier args stmts -> do
+      addFun env identifier typ args
 
-checkDefs :: Env -> [ Def ] -> Err ()
-checkDefs env [] = Ok ()
+-------------------------------------------------------------------------------------
+--Methods for second run, Traverse AST and TypeCheck expressions
+-------------------------------------------------------------------------------------
+
+-- Check a list of definitions
+checkDefs :: Env -> [ Def ] -> Err (Env, [Def])
+checkDefs env [] = Ok (env, [])
+checkDefs env [def] =
+  do
+    (env_, aDef) <- checkDef env def
+    Ok (env_, [aDef])
 checkDefs env (def:defs) =
   do
-    -- Why monad needed?
-    env_ <- checkDef env def
-    checkDefs env_ defs
+    (env_, aDef) <- checkDef env def
+    (env_, aDefs) <- checkDefs env_ defs
+    Ok (env_, aDef : aDefs)
 
-
-checkDef :: Env -> Def -> Err Env
+-- Check definition
+checkDef :: Env -> Def -> Err (Env, Def)
 checkDef env def =
   case def of
-    -- TODO ask: why do we only use env from addParams and never err?
     DFun typ identifier args stmts ->
       do
         env_ <- addParams env identifier typ args
-        checkStmts env_ stmts typ
-        env__ <- remScope env_
-        Ok env__
+        (env_, aStmts) <- checkStmts env_ stmts typ
+        env_ <- remScope env_
+        Ok (env_, DFun typ identifier args aStmts)
 
-checkStmts :: Env -> [ Stm ] -> Type -> Err Env
-checkStmts env [] _ = Ok env
+-- check a list of statements
+checkStmts :: Env -> [ Stm ] -> Type -> Err (Env, [Stm])
+checkStmts env [] typ = Ok (env, [])
+checkStmts env [stmt] typ =
+  do
+    (env_, aStmt) <-checkStmt env stmt typ
+    Ok (env_, [aStmt])
 checkStmts env (stmt:stmts) typ =
   do
-    env_ <- checkStmt env stmt typ
-    checkStmts env_ stmts typ
+    (env_, aStmt) <- checkStmt env stmt typ
+    (env_, aStmts) <- checkStmts env_ stmts typ
+    Ok (env_, aStmt : aStmts)
 
-checkStmt :: Env -> Stm -> Type -> Err Env
+-- check a statement for validity
+checkStmt :: Env -> Stm -> Type -> Err (Env, Stm)
 checkStmt env stmt typ =
   case stmt of
     SExp exp                 ->
       do
-        checkExp env exp
-        Ok env
+        aExp <- checkExp env exp
+        Ok (env, SExp aExp)
     SDecls typ identifiers   ->
-      addVars env identifiers typ
+      do
+        env_ <- addVars env identifiers typ
+        Ok (env_, stmt)
     SInit typ identifier exp ->
       do
-        if (Ok typ == checkExp env exp) then
-          addVar env identifier typ
+        aExp <- checkExp env exp
+        expTyp <- getTyp aExp
+        if (expTyp == typ) then
+          do
+            env_ <- addVar env identifier expTyp
+            Ok (env_, SInit typ identifier aExp)
         else
-          Bad ("Expression is of wrong type")
+          Bad ("Expression is of wrong type in initialization " ++ printTree stmt)
     SReturn exp              ->
       do
-        checkExpType env exp typ
-        Ok env
+        aExp <- checkExpType env exp typ
+        Ok (env, SReturn aExp)
     SReturnVoid              ->
-      Ok env
+      Ok (env, stmt)
     SWhile exp stmt          ->
       do
         env_ <- addScope env
-        -- Expressions cannot change environment
-        if (checkExp env_ exp == Ok Type_bool) then
+        aExp <- checkExp env_ exp
+        expTyp <- getTyp aExp
+        if (expTyp == Type_bool) then
           do
-            checkStmt env_ stmt typ
-            Ok env
+            (env_, aStmt) <- checkStmt env_ stmt typ
+            env_ <- remScope env_
+            Ok (env_, SWhile aExp aStmt)
         else
           Bad ("Expression of while loops must be of type boolean")
     SBlock stmts             ->
       do
         env_ <- addScope env
-        checkStmts env_ stmts typ
-        Ok env
+        (env_, aStmts) <- checkStmts env_ stmts typ
+        env_ <- remScope env_
+        Ok (env_, SBlock aStmts)
     SIfElse exp stmt1 stmt2  ->
       do
         env_ <- addScope env
-        if (checkExp env_ exp == Ok Type_bool) then
+        aExp <- checkExp env_ exp
+        expTyp <- getTyp aExp
+        if (expTyp == Type_bool) then
           do
-            checkStmt env_ stmt1 typ
-            checkStmt env_ stmt2 typ
-            Ok env
+            (env_, aStmt1) <- checkStmt env_ stmt1 typ
+            (env_, aStmt2) <- checkStmt env_ stmt2 typ
+            env_ <- remScope env_
+            Ok (env_, SIfElse aExp aStmt1 aStmt2)
         else
           Bad ("Expression in if expressions must be of type boolean")
 
-checkExp :: Env -> Exp -> Err Type
+-----------------------------------------------------------------------------------------------
+--Inference Methods
+-----------------------------------------------------------------------------------------------
+
+-- Infer type of expression
+checkExp :: Env -> Exp -> Err Exp
 checkExp env exp =
   case exp of
-    ETrue                    -> Ok Type_bool
-    EFalse                   -> Ok Type_bool
-    EInt _                   -> Ok Type_int
-    EDouble _                -> Ok Type_double
-    EString _                -> Ok Type_string
-    EId id                   -> lookupVar env id
+    ETrue                    -> Ok (ETyped exp Type_bool)
+    EFalse                   -> Ok (ETyped exp Type_bool)
+    EInt _                   -> Ok (ETyped exp Type_int)
+    EDouble _                -> Ok (ETyped exp Type_double)
+    EString _                -> Ok (ETyped exp Type_string)
+    EId id                   ->
+      do
+        typ <- lookupVar env id
+        Ok (ETyped exp typ)
     EApp id exprs            -> 
       do
         (retType, types) <- lookupFun env id
         if (length exprs == length types) then
           do
-            mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
-            Ok retType
+            aExprs <- mapM (\(expr, typ) -> checkExpType env expr typ) (zip exprs types)
+            Ok (ETyped (EApp id aExprs) retType)
         else
           Bad ("Number of passed arguments doesn't match function declaration")
-    EPIncr exp               -> checkUnaryArithmeticOperator env exp
-    EPDecr exp               -> checkUnaryArithmeticOperator env exp
-    EIncr exp                -> checkUnaryArithmeticOperator env exp
-    EDecr exp                -> checkUnaryArithmeticOperator env exp
-    ETimes lhs rhs           -> checkArithmeticOperator env lhs rhs
-    EDiv lhs rhs             -> checkArithmeticOperator env lhs rhs
-    EPlus lhs rhs            -> checkPlusOperator env lhs rhs
-    EMinus lhs rhs           -> checkArithmeticOperator env lhs rhs
+    EPIncr exp               ->
+      do
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PostIncrement"
+        typ <- getTyp aExp
+        Ok (ETyped (EPIncr aExp) typ)
+    EPDecr exp               ->
+      do
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PostDecrement"
+        typ <- getTyp aExp
+        Ok (ETyped (EPDecr aExp) typ)
+    EIncr exp                ->
+      do
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PreIncrement"
+        typ <- getTyp aExp
+        Ok (ETyped (EIncr aExp) typ)
+    EDecr exp                ->
+      do
+        aExp <- checkUnaryOperator env exp [Type_int, Type_double] "PreDecrement"
+        typ <- getTyp aExp
+        Ok (ETyped (EDecr aExp) typ)
+    ETimes lhs rhs           ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Times (*)"
+        typ <- getTyp aLhs
+        Ok (ETyped (ETimes aLhs aRhs) typ)
+    EDiv lhs rhs             ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Div (/)"
+        typ <- getTyp aLhs
+        Ok (ETyped (EDiv aLhs aRhs) typ)
+    EPlus lhs rhs            ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Plus (+)"
+        typ <- getTyp aLhs
+        Ok (ETyped (EPlus aLhs aRhs) typ)
+    EMinus lhs rhs           ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double] "Minus (-)"
+        typ <- getTyp aLhs
+        Ok (ETyped (EMinus aLhs aRhs) typ)
     ELt lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Lt (<)"
+        Ok (ETyped (ELt aLhs aRhs) Type_bool)
     EGt lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Gt (>)"
+        Ok (ETyped (EGt aLhs aRhs) Type_bool)
     ELtEq lhs rhs            ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "LtEq (<=)"
+        Ok (ETyped (ELtEq aLhs aRhs) Type_bool)
     EGtEq lhs rhs            ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "GtEq (>=)"
+        Ok (ETyped (EGtEq aLhs aRhs) Type_bool)
     EEq lhs rhs              ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "Eq (==)"
+        Ok (ETyped (EEq aLhs aRhs) Type_bool)
     ENEq lhs rhs             ->
       do
-        checkExpTypeEquality env lhs rhs
-        Ok Type_bool
-    EAnd lhs rhs             -> checkExpTypesAreBool env lhs rhs
-    EOr lhs rhs              -> checkExpTypesAreBool env lhs rhs
-    EAss lhs rhs             -> checkExpTypeEquality env lhs rhs
-    ETyped _ typ            -> Ok typ
-
-checkUnaryArithmeticOperator :: Env -> Exp -> Err Type
-checkUnaryArithmeticOperator env exp =
-  do
-    typ <- checkExp env exp
-    if (typ == Type_int || typ == Type_double) then
-      Ok typ
-    else
-      Bad ("Unary operators are only defined for int and double")
-
-checkArithmeticOperator :: Env -> Exp -> Exp -> Err Type
-checkArithmeticOperator env lhs rhs =
-  do
-    lhsTyp <- checkExp env lhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double) then
-      checkExpType env rhs lhsTyp
-    else
-      Bad ("Arithmetic operator is only definded for types int and double")
-
-checkPlusOperator :: Env -> Exp -> Exp -> Err Type
-checkPlusOperator env lhs rhs =
-  do
-    lhsTyp <- checkExp env lhs
-    if (lhsTyp == Type_int || lhsTyp == Type_double || lhsTyp == Type_string) then
-      checkExpType env rhs lhsTyp
-    else
-      Bad ("Arithmetic operator is only definded for types int and double")
-
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string] "NEq (!=)"
+        Ok (ETyped (ENEq aLhs aRhs) Type_bool)
+    EAnd lhs rhs             ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_bool] "And (&&)"
+        Ok (ETyped (EAnd aLhs aRhs) Type_bool)
+    EOr lhs rhs              ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_bool] "Or (||)"
+        Ok (ETyped (EOr aLhs aRhs) Type_bool)
+    EAss lhs rhs             ->
+      do
+        (aLhs, aRhs) <- checkBinaryOperator env lhs rhs [Type_int, Type_double, Type_string, Type_bool] "Assignment (=)"
+        typ <- getTyp aLhs
+        Ok (ETyped (EAss aLhs aRhs) typ)
+    ETyped _ typ            -> Ok exp
 
 -- checks if given expression is of given type
-checkExpType :: Env -> Exp -> Type -> Err Type
+checkExpType :: Env -> Exp -> Type -> Err Exp
 checkExpType env exp typ =
   case checkExp env exp of
-    Ok expTyp ->
-      if expTyp == typ then
-        Ok expTyp
-      else
-        Bad ("Types don't match in function call. Exp : " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree expTyp)
+    Ok aExp ->
+      do
+        isTyp <- getTyp aExp
+        if isTyp == typ then
+          Ok (ETyped exp typ)
+        else
+          Bad ("Type mismatch. Exp " ++ printTree exp ++ " should be of type " ++ printTree typ ++ " but has type " ++ printTree isTyp)
     Bad s -> Bad s
 
--- checks if types of both given expressions are equal, returns type of expressions or error
-checkExpTypeEquality :: Env -> Exp -> Exp -> Err Type
+-- checks if types of both given expressions are equal, returns annotated expressions or error
+checkExpTypeEquality :: Env -> Exp -> Exp -> Err (Exp, Exp)
 checkExpTypeEquality env lhs rhs =
   do
-    typ1 <- checkExp env lhs
-    typ2 <- checkExp env rhs
-    if (typ1 == typ2) then
-      Ok typ1
+    aLhs <- checkExp env lhs
+    typLhs <- getTyp aLhs
+    aRhs <- checkExp env rhs
+    typRhs <- getTyp aRhs
+    if (getTyp aLhs == getTyp aRhs) then
+      Ok (aLhs, aRhs)
     else
-      Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typ1 ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typ2)
+      Bad ("Types of expressions don't match. lhs: " ++ printTree lhs ++ " of type " ++ printTree typLhs ++ " rhs: " ++ printTree rhs ++ " of type " ++ printTree typRhs)
 
--- checks if types of both given expressions are boolean, returns Type_bool or error
-checkExpTypesAreBool :: Env -> Exp -> Exp -> Err Type
-checkExpTypesAreBool env lhs rhs =
-      if (checkExp env lhs == Ok Type_bool && checkExp env rhs == Ok Type_bool) then
-        Ok Type_bool
-      else
-        Bad ("Types must be boolean in Conjuctions and Disjunctions")
+-- infer type of unary operator
+checkUnaryOperator :: Env -> Exp -> [Type] -> String -> Err Exp
+checkUnaryOperator env exp types name =
+  do
+    aExp <- checkExp env exp
+    typ <- getTyp aExp
+    if (elem typ types) then
+      Ok aExp
+    else
+      Bad ("Unary operators " ++ name ++ " is only defined for types " ++ show types)
 
+-- infer type of arithmetic operator
+checkBinaryOperator :: Env -> Exp -> Exp -> [Type] -> String -> Err (Exp, Exp)
+checkBinaryOperator env lhs rhs types name =
+  do
+    aExpLhs <- checkExp env lhs
+    lhsTyp <- getTyp aExpLhs
+    if (elem lhsTyp types) then
+      do
+        aExpRhs <- checkExpType env rhs lhsTyp
+        Ok (aExpLhs, aExpRhs)
+    else
+      Bad ("Arithmetic operator " ++ name ++ " is only definded for types " ++ show types)
 
+-- Get Type wrapped in ETyped
+getTyp :: Exp -> Err Type
+getTyp exp =
+  case exp of
+    ETyped _ typ -> Ok typ
+    _ -> Bad ("Method getTyp of TypeChecker shall only be called for ETyped Expressions")
 

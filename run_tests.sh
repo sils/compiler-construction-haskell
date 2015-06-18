@@ -22,6 +22,7 @@ echo Done, tests for task 3.
 echo Running tests for task 4..
 cd task4_codegen
 sh test_typechecker.sh
+python3 test_codegen.py
 cd ..
 echo Done, tests for task 4.
 
