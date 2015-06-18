@@ -171,14 +171,19 @@ codeGenDef (DFun typ id args stmts) = do
   emit (define typ id infos)
   mapM_ codeGenArg args
   codeGenStmts stmts typ
-  if (getLLVMType typ) == "double" then
-    emit ("ret " ++ (getLLVMType typ) ++ " 0.0")
-  else
-    emit ("ret " ++ (getLLVMType typ) ++ " 0")
+  emit ("ret " ++ (retzero (getLLVMType typ)))
   emit "}\n"
   exitScope
   resetNextTemp
   return ()
+
+retzero :: LLVMExpr -> LLVMExpr
+retzero typ =
+  case typ of
+    "double" -> typ++" 0.0"
+    "void"   -> "void"
+    "i32"    -> typ++" 0"
+    "i1"     -> typ++" 0"
 
 -- Generate code for function argument
 codeGenArg :: Arg -> State Env ()
