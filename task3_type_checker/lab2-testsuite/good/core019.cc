@@ -17,7 +17,7 @@ int main() {
     printInt(i);
   } else {
 
-  } 
+  }
   printInt(i);
   return 0 ;
 

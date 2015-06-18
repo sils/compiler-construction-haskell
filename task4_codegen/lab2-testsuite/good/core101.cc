@@ -1,6 +1,6 @@
 bool foo(int x) {
     if (x == 0) {
-	return false;
+    return false;
     } else {}
 
     bool b = true;
@@ -11,13 +11,13 @@ bool foo(int x) {
 }
 
 void printBool(bool b) {
-	if (false) {}
+    if (false) {}
   else
 
   if (b) {
-	  printInt(0);
+      printInt(0);
   } else {
-	  printInt(1);
+      printInt(1);
   }
 
 }

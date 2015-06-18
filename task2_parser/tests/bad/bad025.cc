@@ -1,4 +1,4 @@
 struct bar {
-	int baz;
+    int baz;
         double foo
 } ;

@@ -1,3 +1,3 @@
 int foo() {
-	if (4) { } elseif { return 2; }
+    if (4) { } elseif { return 2; }
 }

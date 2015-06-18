@@ -1,3 +1,3 @@
 int main () {
-	1 + void;
+    1 + void;
 }

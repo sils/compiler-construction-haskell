@@ -1,4 +1,4 @@
 int main() {
-	if (t)
-		return x1 ? x2 : x3;
+    if (t)
+        return x1 ? x2 : x3;
 }

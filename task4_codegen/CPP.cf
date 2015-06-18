@@ -24,7 +24,7 @@ EFalse.  Exp15  ::= "false" ;
 EInt.    Exp15  ::= Integer ;
 EDouble. Exp15  ::= Double ;
 EString. Exp15  ::= String ;
-EId.     Exp15  ::= Id ; 
+EId.     Exp15  ::= Id ;
 
 EApp.    Exp15  ::= Id "(" [Exp] ")" ;
 

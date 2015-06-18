@@ -1,6 +1,6 @@
 int main() {
-	{
-		int x;
-	}
-	return x;
+    {
+        int x;
+    }
+    return x;
 }

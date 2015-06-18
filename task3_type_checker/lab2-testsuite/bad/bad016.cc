@@ -1,7 +1,7 @@
 int main() {
-	{
-		int x;
-	}
-	x = 4;
-	return 2;
+    {
+        int x;
+    }
+    x = 4;
+    return 2;
 }

@@ -1,3 +1,3 @@
 int main () {
-	1 + double;
+    1 + double;
 }

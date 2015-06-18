@@ -1,3 +1,3 @@
 int main() {
-	inline int x;
+    inline int x;
 }

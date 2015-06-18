@@ -1,4 +1,4 @@
 int foo() {
-	while (return 5) 45;
-	return x;
+    while (return 5) 45;
+    return x;
 }

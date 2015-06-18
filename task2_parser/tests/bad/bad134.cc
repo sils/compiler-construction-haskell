@@ -1,3 +1,3 @@
 int main() {
-	int & + 1;
+    int & + 1;
 }

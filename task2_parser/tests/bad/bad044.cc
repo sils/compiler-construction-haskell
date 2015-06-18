@@ -1,3 +1,3 @@
 int foo() {
-	printf("foo" "bar" 42);
+    printf("foo" "bar" 42);
 }

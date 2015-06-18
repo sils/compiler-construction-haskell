@@ -1,8 +1,8 @@
 int main() {
   int j = 4;
 
-  { 
-	printInt(j);
+  {
+    printInt(j);
   }
 
   return j;

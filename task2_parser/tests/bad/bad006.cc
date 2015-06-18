@@ -1,5 +1,5 @@
 using cout::5;
 
 int main () {
-	return 0;
+    return 0;
 }

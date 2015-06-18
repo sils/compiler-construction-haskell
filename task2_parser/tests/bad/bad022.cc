@@ -1,3 +1,3 @@
 struct bar {
-	foo;
+    foo;
 } ;

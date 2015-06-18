@@ -1,3 +1,3 @@
 int main () {
-	return true - 0;
+    return true - 0;
 }

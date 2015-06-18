@@ -1,3 +1,3 @@
 int main () {
-	1 + bool;
+    1 + bool;
 }

@@ -1,7 +1,7 @@
 int main() {
         if (true)
                 return false;
-	else
-		return true;
+    else
+        return true;
         return 1;
 }

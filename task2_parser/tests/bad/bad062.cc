@@ -1,3 +1,3 @@
 int foo() {
-	while 1; return 2;
+    while 1; return 2;
 }

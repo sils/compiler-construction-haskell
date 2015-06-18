@@ -1,3 +1,3 @@
 int main () {
-	a::b::c << "apa";
+    a::b::c << "apa";
 }

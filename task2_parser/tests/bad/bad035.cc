@@ -1,4 +1,4 @@
 int foo() {
-	for (int i = 0; true; return 2) { }
-	return x;
+    for (int i = 0; true; return 2) { }
+    return x;
 }

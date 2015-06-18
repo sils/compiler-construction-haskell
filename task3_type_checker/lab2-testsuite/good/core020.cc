@@ -1,5 +1,5 @@
 void bar() {
-	return foo();
+    return foo();
 }
 
 void foo() {

@@ -1,4 +1,4 @@
 int main () {
-	if (3 == true) {} else {}
-	return 0;
+    if (3 == true) {} else {}
+    return 0;
 }

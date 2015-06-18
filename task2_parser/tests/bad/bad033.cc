@@ -1,3 +1,3 @@
 int foo() {
-	while (5)
+    while (5)
 }

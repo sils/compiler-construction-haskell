@@ -1,3 +1,3 @@
 int main () {
-	typedef (45*std::cout) apa;
+    typedef (45*std::cout) apa;
 }

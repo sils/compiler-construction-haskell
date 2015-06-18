@@ -13,7 +13,7 @@ using std::isspace;
 
 bool is_palindrome(const string& s)
 {
-	return equal(s.begin(), s.end(), s.rbegin());
+    return equal(s.begin(), s.end(), s.rbegin());
 }
 
 int main()

@@ -1,3 +1,3 @@
 int foo() {
-	throw (if 2 then 3 else 4);
+    throw (if 2 then 3 else 4);
 }
